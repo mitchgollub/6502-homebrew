@@ -39,26 +39,6 @@ reset:
     lda #%0         ;   Enable bit OFF   
     sta PORTA
 
-; Bug is here
-; 0110000000000000    00000110   6000  w 06 ; lda 00000110 -> sta PORTB
-; 1000000000110111    10101001   8037  r a9
-; 1000000000111000    00000000   8038  r 00
-; 1000000000111001    10001101   8039  r 8d
-; 1000000000111010    00000001   803a  r 01
-; 1000000000111011    01100000   803b  r 60
-; 0110000000000001    00000000   6001  w 00
-; 1000000000111100    10101001   803c  r a9
-; 1000000000111101    10000000   803d  r 80
-; 1000000000111110    10001101   803e  r 8d
-; 1000000000111111    00000001   803f  r 01
-; 1000000001000000    00000000   8040  r 00 ; should be 0110000 for 60 ; hexdump shows 60
-; 0000000000000001    10000000   0001  w 80
-; 1000000001000001    00000000   8041  r 00 ; why is it still reading x00 here? ; hexdump shows a9 at 8041, not 00
-
-; Memory read from programmer shows the write is correct? YES
-; Are the address connections to the EEPROM correct for 8040? YES
-; Chip Enable is HIGH for 8040... why?
-
     lda #%00000110  ;   Increment and shift cursor - don't shift display
     sta PORTB
     
