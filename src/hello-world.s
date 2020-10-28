@@ -15,212 +15,78 @@ reset:
     sta DDRA
 
     lda #%00111000  ;   8-bit - 2 line - 5x8 font (001<DL><N><F>xx)   
-    sta PORTB
-    
-    lda #%0         ;   Clear RS/RW/E bits   
-    sta PORTA
-
-    lda #E          ;   Enable bit ON   
-    sta PORTA
-
-    lda #%0         ;   Enable bit OFF   
-    sta PORTA
+    jsr lcd_instruction
 
 
     lda #%00001110  ;   Display on - Cursor on - Blink off   
-    sta PORTB
-    
-    lda #%0         ;   Clear RS/RW/E bits   
-    sta PORTA
-
-    lda #E          ;   Enable bit ON   
-    sta PORTA
-
-    lda #%0         ;   Enable bit OFF   
-    sta PORTA
+    jsr lcd_instruction
 
     lda #%00000110  ;   Increment and shift cursor - don't shift display
-    sta PORTB
-    
-    lda #%0         ;   Clear RS/RW/E bits
-    sta PORTA
-
-    lda #E          ;   Enable bit ON   
-    sta PORTA
-
-    lda #%0         ;   Enable bit OFF   
-    sta PORTA
+    jsr lcd_instruction
 
     lda #$00000001  ;   Clear display
-    sta PORTB
-
-    lda #%0         ;   Clear RS/RW/E bits
-    sta PORTA
-
-    lda #E          ;   Enable bit ON   
-    sta PORTA
-
-    lda #%0         ;   Enable bit OFF   
-    sta PORTA
+    jsr lcd_instruction
 
 
     lda #"H"        ;   H data
-    sta PORTB
-    
-    lda #RS         ;   RS bit to write   
-    sta PORTA
-
-    lda #(RS | E)  ;   Set RS and E bits   
-    sta PORTA
-
-    lda #RS         ;   Latch Data   
-    sta PORTA
+    jsr print_char
 
     lda #"e"        ;   H data
-    sta PORTB
-    
-    lda #RS         ;   RS bit to write   
-    sta PORTA
-
-    lda #(RS | E)  ;   Set RS and E bits   
-    sta PORTA
-
-    lda #RS         ;   Latch Data   
-    sta PORTA
+    jsr print_char
 
     lda #"l"        ;   H data
-    sta PORTB
-    
-    lda #RS         ;   RS bit to write   
-    sta PORTA
-
-    lda #(RS | E)  ;   Set RS and E bits   
-    sta PORTA
-
-    lda #RS         ;   Latch Data   
-    sta PORTA
+    jsr print_char
 
     lda #"l"        ;   H data
-    sta PORTB
-    
-    lda #RS         ;   RS bit to write   
-    sta PORTA
-
-    lda #(RS | E)  ;   Set RS and E bits   
-    sta PORTA
-
-    lda #RS         ;   Latch Data   
-    sta PORTA
+    jsr print_char
 
     lda #"o"        ;   H data
-    sta PORTB
-    
-    lda #RS         ;   RS bit to write   
-    sta PORTA
-
-    lda #(RS | E)  ;   Set RS and E bits   
-    sta PORTA
-
-    lda #RS         ;   Latch Data   
-    sta PORTA
+    jsr print_char
 
     lda #" "        ;   H data
-    sta PORTB
-    
-    lda #RS         ;   RS bit to write   
-    sta PORTA
-
-    lda #(RS | E)  ;   Set RS and E bits   
-    sta PORTA
-
-    lda #RS         ;   Latch Data   
-    sta PORTA
+    jsr print_char
 
     lda #"W"        ;   H data
-    sta PORTB
-    
-    lda #RS         ;   RS bit to write   
-    sta PORTA
-
-    lda #(RS | E)  ;   Set RS and E bits   
-    sta PORTA
-
-    lda #RS         ;   Latch Data   
-    sta PORTA
+    jsr print_char
 
     lda #"o"        ;   H data
-    sta PORTB
-    
-    lda #RS         ;   RS bit to write   
-    sta PORTA
-
-    lda #(RS | E)  ;   Set RS and E bits   
-    sta PORTA
-
-    lda #RS         ;   Latch Data   
-    sta PORTA
+    jsr print_char
 
     lda #"r"        ;   H data
-    sta PORTB
-    
-    lda #RS         ;   RS bit to write   
-    sta PORTA
-
-    lda #(RS | E)  ;   Set RS and E bits   
-    sta PORTA
-
-    lda #RS         ;   Latch Data   
-    sta PORTA
+    jsr print_char
 
     lda #"l"        ;   H data
-    sta PORTB
-    
-    lda #RS         ;   RS bit to write   
-    sta PORTA
-
-    lda #(RS | E)  ;   Set RS and E bits   
-    sta PORTA
-
-    lda #RS         ;   Latch Data   
-    sta PORTA
+    jsr print_char
 
     lda #"d"        ;   H data
-    sta PORTB
-    
-    lda #RS         ;   RS bit to write   
-    sta PORTA
-
-    lda #(RS | E)  ;   Set RS and E bits   
-    sta PORTA
-
-    lda #RS         ;   Latch Data   
-    sta PORTA
+    jsr print_char
 
     lda #"!"        ;   H data
-    sta PORTB
-    
-    lda #RS         ;   RS bit to write   
-    sta PORTA
-
-    lda #(RS | E)  ;   Set RS and E bits   
-    sta PORTA
-
-    lda #RS         ;   Latch Data   
-    sta PORTA
+    jsr print_char
 
 loop:
     jmp loop
 
 
 lcd_instruction:
+    sta PORTB
     lda #%0         ;   Clear RS/RW/E bits
     sta PORTA
-
     lda #E          ;   Enable bit ON   
     sta PORTA
-
     lda #%0         ;   Enable bit OFF   
     sta PORTA
+    rts
+
+print_char:
+    sta PORTB
+    lda #RS         ;   RS bit to write   
+    sta PORTA
+    lda #(RS | E)  ;   Set RS and E bits   
+    sta PORTA
+    lda #RS         ;   Latch Data   
+    sta PORTA
+    rts
 
     .org $fffc
     .word reset

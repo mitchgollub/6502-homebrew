@@ -211,17 +211,6 @@ reset:
 loop:
     jmp loop
 
-
-lcd_instruction:
-    lda #%0         ;   Clear RS/RW/E bits
-    sta PORTA
-
-    lda #E          ;   Enable bit ON   
-    sta PORTA
-
-    lda #%0         ;   Enable bit OFF   
-    sta PORTA
-
     .org $fffc
     .word reset
     .word $0000
