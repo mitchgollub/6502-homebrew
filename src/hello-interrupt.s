@@ -2,14 +2,24 @@ PORTA   = $6001
 PORTB   = $6000
 DDRA    = $6003
 DDRB    = $6002
-E       = %10000000
+PCR     = $600c     ;   Peripherial Control Register -> 65c22
+IFR     = $600d     ;   Interrupt Flag Register -> 65c22
+IER     = $600e     ;   Interrupt Enable Register -> 65c22
+E       = %10000000 
 RW      = %01000000
 RS      = %00100000
+    
     .org $8000
-
 reset:
-    ldx #$ff
-    txs
+    ldx #$ff    ;   load $ff into X
+    txs         ;   transfer $ff as stack pointer
+    cli
+
+    lda #%10000010  ;   Enable CA1 interrupt
+    sta IER
+    lda #$00        ;   Enable CA1 Negative Edge
+    sta PCR
+    
 
     lda #%11111111  ;   Set 8 pins on PORTB to output
     sta DDRB
@@ -39,10 +49,20 @@ print:
     inx
     jmp print
     
+print_interrupt:
+    ldy #0                          ;   Initialize Y Register
+print_interrupt_loop:
+    lda interrupt_message,y         ;   Set A and Y to interrupt 
+    beq exit_irq
+    jsr print_char
+    iny
+    jmp print_interrupt_loop
+    
 loop:
     jmp loop
 
 message: .asciiz "I love you!"
+interrupt_message: .asciiz "Int"
 
 lcd_wait:
     pha
@@ -86,6 +106,23 @@ print_char:
     sta PORTA
     rts
 
-    .org $fffc
+nmi:
+    ; rti
+
+irq:
+    ; phy                     ;   Push Y and A onto stack since they used
+    pha                     ;   int print_interrupt
+    jsr print_interrupt
+exit_irq:
+    ; ply
+    ; lda #"D"  ;   Printf debugging lol
+    ; jsr print_char
+    bit PORTA
+    pla                     ;   Restore Y and A registers
+    rti
+    
+    .org $fffa
+    .word nmi
     .word reset
-    .word $0000
+    .word irq
+    ; .word $0000
