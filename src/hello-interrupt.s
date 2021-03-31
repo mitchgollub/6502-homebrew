@@ -50,12 +50,12 @@ print:
     jmp print
     
 print_interrupt:
-    ldy #0                          ;   Initialize Y Register
+    ldx #0                          ;   Initialize Y Register
 print_interrupt_loop:
-    lda interrupt_message,y         ;   Set A and Y to interrupt 
+    lda interrupt_message,x         ;   Set A and Y to interrupt 
     beq exit_irq
     jsr print_char
-    iny
+    inx
     jmp print_interrupt_loop
     
 loop:
@@ -119,7 +119,7 @@ exit_irq:
     ; jsr print_char
     bit PORTA
     pla                     ;   Restore Y and A registers
-    rti
+    rti                     ; Is this the right command?
     
     .org $fffa
     .word nmi
