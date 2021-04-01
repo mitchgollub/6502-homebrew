@@ -52,12 +52,12 @@ loop:                               ;   End loop
     jmp loop
     
 print_interrupt:
-    ldx #0                          ;   Initialize X Register
+    ldy #0                          ;   Initialize X Register
 print_interrupt_loop:
-    lda interrupt_message,x         ;   Set A and X to interrupt 
+    lda interrupt_message,y         ;   Set A and X to interrupt 
     beq exit_irq
     jsr print_char
-    inx
+    iny
     jmp print_interrupt_loop
     
 message: .asciiz "I love you!"
@@ -114,7 +114,7 @@ irq:
 exit_irq:
     bit PORTA
     pla                     ; Restore A register
-    rti                     ; Is this the right command? Doesn't go back to loop 
+    rti                     ; Return from the Interrupt 
 
     .org $fffa
     .word nmi
