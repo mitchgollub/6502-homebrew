@@ -19,7 +19,6 @@ reset:
     sta IER
     lda #$00        ;   Enable CA1 Negative Edge
     sta PCR
-    
 
     lda #%11111111  ;   Set 8 pins on PORTB to output
     sta DDRB
@@ -48,19 +47,19 @@ print:
     jsr print_char
     inx
     jmp print
+
+loop:                               ;   End loop
+    jmp loop
     
 print_interrupt:
-    ldy #0                          ;   Initialize Y Register
+    ldy #0                          ;   Initialize X Register
 print_interrupt_loop:
-    lda interrupt_message,y         ;   Set A and Y to interrupt 
+    lda interrupt_message,y         ;   Set A and X to interrupt 
     beq exit_irq
     jsr print_char
     iny
     jmp print_interrupt_loop
     
-loop:
-    jmp loop
-
 message: .asciiz "I love you!"
 interrupt_message: .asciiz "Int"
 
@@ -110,19 +109,14 @@ nmi:
     ; rti
 
 irq:
-    ; phy                     ;   Push Y and A onto stack since they used
-    pha                     ;   int print_interrupt
-    jsr print_interrupt
+    pha                     ; Push A onto stack since it's used                     
+    jmp print_interrupt     ; Use `jmp` here, print_interrupt doesn't exit using rts    
 exit_irq:
-    ; ply
-    ; lda #"D"  ;   Printf debugging lol
-    ; jsr print_char
     bit PORTA
-    pla                     ;   Restore Y and A registers
-    rti
-    
+    pla                     ; Restore A register
+    rti                     ; Return from the Interrupt 
+
     .org $fffa
     .word nmi
     .word reset
     .word irq
-    ; .word $0000
