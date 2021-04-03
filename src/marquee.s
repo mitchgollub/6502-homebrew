@@ -11,7 +11,7 @@ RW      = %01000000
 RS      = %00100000
 
 ; Stack memory locations - 0100 -> 01FF
-; RAM memory locations - 0200 -> 3FFF
+; RAM memory locations - 0200 -> 3FFF (Full range 0000-3FFF)
 char    = $0200     ; 2 bytes
 
 ; ROM memory addresses 8000 -> FFFF
@@ -64,7 +64,7 @@ increment_input_char:
 shift_cursor_left_sub:
     lda #%00010000    ;   shift cursor left
     jsr lcd_instruction
-    jmp exit_irq
+    rts
 
 lcd_wait:
     pha
@@ -112,7 +112,7 @@ nmi:
     ; rti
 
 irq:
-    jmp increment_input_char
+    jsr increment_input_char
 exit_irq:
     bit PORTA
     rti                     ; Return from the Interrupt 
