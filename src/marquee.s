@@ -1,4 +1,5 @@
-PORTA   = $6001
+; I/O addresses 6000 -> 600F
+PORTA   = $6001     
 PORTB   = $6000
 DDRA    = $6003
 DDRB    = $6002
@@ -8,7 +9,12 @@ IER     = $600e     ;   Interrupt Enable Register -> 65c22
 E       = %10000000 
 RW      = %01000000
 RS      = %00100000
-    
+
+; Stack memory locations - 0100 -> 01FF
+; RAM memory locations - 0200 -> 3FFF
+char    = $0200     ; 2 bytes
+
+; ROM memory addresses 8000 -> FFFF
     .org $8000
 reset:
     ldx #$ff    ;   load $ff into X
@@ -30,38 +36,35 @@ reset:
     jsr lcd_instruction
 
 
-    lda #%00001110  ;   Display on - Cursor on - Blink off   
+    lda #%00001111  ;   Display on - Cursor on - Blink on   
     jsr lcd_instruction
 
     lda #%00000110  ;   Increment and shift cursor - don't shift display
     jsr lcd_instruction
 
-    lda #$00000001  ;   Clear display
+    lda #$01  ;   Clear display
     jsr lcd_instruction
 
     ldx #0
-    
-print:
-    lda message,x
-    beq loop
+
+shift_cursor_left:
+    lda #%01000001                  ;   Load first char
+    sta char                        ;   Store first char in RAM
     jsr print_char
-    inx
-    jmp print
+    lda #%00010000                  ;   shift cursor left
+    jsr lcd_instruction
 
 loop:                               ;   End loop
     jmp loop
     
-print_interrupt:
-    ldy #0                          ;   Initialize Y Register
-print_interrupt_loop:
-    lda interrupt_message,y         ;   Set A and Y to interrupt 
-    beq exit_irq
+increment_input_char:
+    inc char                        ;   Pull character from RAM
+    lda char
     jsr print_char
-    iny
-    jmp print_interrupt_loop
-    
-message: .asciiz "I love you!"
-interrupt_message: .asciiz "Int"
+shift_cursor_left_sub:
+    lda #%00010000    ;   shift cursor left
+    jsr lcd_instruction
+    jmp exit_irq
 
 lcd_wait:
     pha
@@ -109,11 +112,9 @@ nmi:
     ; rti
 
 irq:
-    pha                     ; Push A onto stack since it's used                     
-    jmp print_interrupt     ; Use `jmp` here, print_interrupt doesn't exit using rts    
+    jmp increment_input_char
 exit_irq:
     bit PORTA
-    pla                     ; Restore A register
     rti                     ; Return from the Interrupt 
 
     .org $fffa
