@@ -143,8 +143,7 @@ sprite_test:
     rts
 
 draw_init_screen:
-    lda #$00                ; Initialize robo jump flag
-    sta robo_jump_time
+    stz robo_jump_time      ; Initialize robo jump flag to 0
     lda #%11000000          ; Set cursor 2nd row 1st char
     sta robo_position       ; Store initial robo_position
     inc robo_position
@@ -176,11 +175,11 @@ draw_init_screen:
 draw_robo_sprite:
     ; Store previous robo position
     ldx robo_position
-    ; Increment robo counter
+    ; Increment robo position in memory to current
     inc robo_position
-    ; Reset counter if over address limit
+    ; Reset position if over LCD address limit
     lda robo_position
-    cmp #%11101000          ;   Reset counter at 11100111
+    cmp #%11101000          ;   Reset counter at 11101000 (last address for line 2)
     beq reset_robo_counter
 draw_robo_sprite_check_jump:
     ; Check robo_jump_time
@@ -203,7 +202,7 @@ draw_robo_sprite_redraw:
     ; done while robo is off display to remove afterimage
     lda #LCD_SHIFT_DISPLAY_LEFT
     jsr lcd_instruction
-    ; draw robo at that counter
+    ; draw robo at new position
     lda robo_position
     jsr set_cursor_address
     lda #ROBO_SPRITE
@@ -218,7 +217,7 @@ handle_robo_jump_time:
     dec robo_jump_time
     lda robo_position
     ; Set robo_position to line 1
-    and #%10111111
+    and #%10111111          ; 0 at D6 is line 1 for LCD
     sta robo_position
     jmp draw_robo_sprite_redraw
 
