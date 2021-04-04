@@ -14,17 +14,19 @@ RS      = %00100000 ;   LCD Input Flag (H - Data, L - Instruction)
 ROBO_SPRITE =   %11001110
 GROUND_SPRITE = %01011111
 HURDLE_SPRITE = %10101101
+BLANK_SPRITE =   %11111110
 
 ; LCD Instructions
 LCD_SHIFT_DISPLAY_LEFT = %00011000
 
 ; Game Constants
-DRAW_LOOP_WAIT_TIME = $30
+DRAW_LOOP_WAIT_TIME = $ff
+ROBO_JUMP_UP_TIME   = $03
 
 ; Stack memory locations - 0100 -> 01FF
 ; RAM memory locations - 0200 -> 3FFF (Full range 0000-3FFF)
-char    = $0200     ; 2 bytes
-robo_position   = $0202 ; 1 byte (6 bits to represent LCD screen cursor position)
+robo_position   = $0200 ; 1 byte (6 bits to represent LCD screen cursor position)
+robo_jump_time  = $0201 ; 1 byte (holds the remaing draw cycles robo is on top display line)
 
 ; ROM memory addresses 8000 -> FFFF
     .org $8000
@@ -68,7 +70,6 @@ draw_loop:              ;   Draw loop
     
 ; 1602a LCD subroutines
 set_cursor_address:
-    ora #%01000000
     jsr lcd_instruction
     rts
 
@@ -130,8 +131,7 @@ print_char:
 
 ; Game subroutines
 sprite_test:
-    lda #ROBO_SPRITE                 ;   Load first char
-    sta char                        ;   Store first char in RAM
+    lda #ROBO_SPRITE                ;   Load first char
     jsr print_char                  ;   Print first char
 
     lda #GROUND_SPRITE
@@ -143,6 +143,8 @@ sprite_test:
     rts
 
 draw_init_screen:
+    lda #$00                ; Initialize robo jump flag
+    sta robo_jump_time
     lda #%11000000          ; Set cursor 2nd row 1st char
     sta robo_position       ; Store initial robo_position
     inc robo_position
@@ -172,35 +174,58 @@ draw_init_screen:
     rts
 
 draw_robo_sprite:
-    ;   Store previous robo position
+    ; Store previous robo position
     ldx robo_position
-    ;   Increment robo counter
+    ; Increment robo counter
     inc robo_position
-    ;   Reset counter if over address limit
+    ; Reset counter if over address limit
     lda robo_position
     cmp #%11101000          ;   Reset counter at 11100111
     beq reset_robo_counter
-draw_robo_sprite_corrected:
-    ;   Clear previous robo position
+draw_robo_sprite_check_jump:
+    ; Check robo_jump_time
+    lda robo_jump_time
+    cmp #$00
+    bne handle_robo_jump_time
+draw_robo_sprite_redraw:
+    ; Clear previous robo position
     txa
     jsr set_cursor_address
     lda #GROUND_SPRITE
+    jsr print_char
+    ; Clear top row too
+    txa
+    and #%10111111
+    jsr set_cursor_address
+    lda #BLANK_SPRITE
     jsr print_char
     ; Shift display/characters left 
     ; done while robo is off display to remove afterimage
     lda #LCD_SHIFT_DISPLAY_LEFT
     jsr lcd_instruction
-    ;   draw robo at that counter
+    ; draw robo at that counter
     lda robo_position
     jsr set_cursor_address
     lda #ROBO_SPRITE
     jsr print_char
+    ; reset the position from the jump adjustment (if needed?)
+    lda robo_position
+    ora #%01000000
+    sta robo_position
     rts
+
+handle_robo_jump_time:
+    dec robo_jump_time
+    lda robo_position
+    ; Set robo_position to line 1
+    and #%10111111
+    sta robo_position
+    jmp draw_robo_sprite_redraw
 
 reset_robo_counter:
     lda #%11000000          ; Set cursor 2nd row 1st char
     sta robo_position       ; Store initial robo_position
-    jmp draw_robo_sprite_corrected
+    jmp draw_robo_sprite_check_jump
 
 wait:
     ldx #DRAW_LOOP_WAIT_TIME
@@ -212,18 +237,18 @@ wait_loop:
     rts
 
 ; Interrupt subroutines
-increment_input_char:
-    inc char                        ;   Pull character from RAM
-    lda char
-    jsr print_char
-    jsr shift_cursor_left
+set_robo_jump_time:
+    pha
+    lda #ROBO_JUMP_UP_TIME
+    sta robo_jump_time
+    pla
     rts
 
 nmi:
     ; rti
 
 irq:
-    jsr increment_input_char
+    jsr set_robo_jump_time
 exit_irq:
     bit PORTA
     rti                     ; Return from the Interrupt 
