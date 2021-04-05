@@ -34,6 +34,7 @@ robo_position   = $0200         ; 1 byte (6 bits to represent LCD screen cursor 
 robo_jump_time  = $0201         ; 1 byte (holds the remaing draw cycles robo is on top display line)
 hurdle_spacing_count = $0202    ; 1 byte (set by `HURDLE_SPACING`, adds hurdle to course)
 hurdle_spawn_position = $0203   ; 1 byte (holds hurdle spawn address)
+init_draw_cursor    = $0204     ; 1 byte (used during init to draw the first screen)
 
 ; ROM memory addresses 8000 -> FFFF
     .org $8000
@@ -160,28 +161,28 @@ draw_init_screen:
     sta robo_position                   ; Store initial robo_position
     inc robo_position
     jsr lcd_instruction
-    lda #GROUND_SPRITE
-    jsr print_char
+
+    lda #LCD_ADDR_LAST_ROW_FIRST_CHAR
+    sta init_draw_cursor
+; loop through 40H - 67H to draw game sprites
+draw_init_course:
+    cmp robo_position
+    bne draw_ground
+    ; if robo_position, draw robo sprite
     lda #ROBO_SPRITE
     jsr print_char
+    jmp end_init_draw_check
+; else draw ground
+draw_ground:
     lda #GROUND_SPRITE
     jsr print_char
-    lda #GROUND_SPRITE
-    jsr print_char
-    lda #HURDLE_SPRITE
-    jsr print_char
-    lda #GROUND_SPRITE
-    jsr print_char
-    lda #GROUND_SPRITE
-    jsr print_char
-    lda #GROUND_SPRITE
-    jsr print_char
-    lda #HURDLE_SPRITE
-    jsr print_char
-    lda #GROUND_SPRITE
-    jsr print_char
-    lda #GROUND_SPRITE
-    jsr print_char
+; end > 67H
+end_init_draw_check:
+    lda init_draw_cursor
+    inc init_draw_cursor
+    cmp #LCD_ADDR_LAST_ROW_LAST_CHAR
+    bne draw_init_course
+draw_init_end:
     rts
 
 draw_hurdle:
@@ -197,10 +198,15 @@ draw_hurdle_check_spacing:
 draw_hurdle_draw:
     stz hurdle_spacing_count    ; Reset `hurdle_spacing_count`
     lda hurdle_spawn_position   ; Load hurdle spawn
-    jsr set_cursor_address      ; AX now has new hurdle address, set cursor 
+    jsr set_cursor_address
     lda #HURDLE_SPRITE
     jsr print_char
+    rts
 draw_hurdle_end:
+    lda hurdle_spawn_position   ; Load hurdle spawn
+    jsr set_cursor_address
+    lda #GROUND_SPRITE          ; No hurdle, draw ground
+    jsr print_char
     rts
 
 reset_hurdle_spawn:
