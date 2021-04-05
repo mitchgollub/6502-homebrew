@@ -19,14 +19,21 @@ BLANK_SPRITE =   %11111110
 ; LCD Instructions
 LCD_SHIFT_DISPLAY_LEFT = %00011000
 
+; LCD Cursor Addresses
+LCD_ADDR_LAST_ROW_LAST_CHAR = %11101000
+LCD_ADDR_LAST_ROW_FIRST_CHAR = %11000000
+
 ; Game Constants
-DRAW_LOOP_WAIT_TIME = $ff
+DRAW_LOOP_WAIT_TIME = $00
 ROBO_JUMP_UP_TIME   = $03
+HURDLE_SPACING      = $07
 
 ; Stack memory locations - 0100 -> 01FF
 ; RAM memory locations - 0200 -> 3FFF (Full range 0000-3FFF)
-robo_position   = $0200 ; 1 byte (6 bits to represent LCD screen cursor position)
-robo_jump_time  = $0201 ; 1 byte (holds the remaing draw cycles robo is on top display line)
+robo_position   = $0200         ; 1 byte (6 bits to represent LCD screen cursor position)
+robo_jump_time  = $0201         ; 1 byte (holds the remaing draw cycles robo is on top display line)
+hurdle_spacing_count = $0202    ; 1 byte (set by `HURDLE_SPACING`, adds hurdle to course)
+hurdle_spawn_position = $0203   ; 1 byte (holds hurdle spawn address)
 
 ; ROM memory addresses 8000 -> FFFF
     .org $8000
@@ -63,6 +70,8 @@ reset:
     jsr draw_init_screen
 
 draw_loop:              ;   Draw loop
+    ; draw hurdle
+    jsr draw_hurdle
     ; draw robo sprite
     jsr draw_robo_sprite
     jsr wait
@@ -143,9 +152,12 @@ sprite_test:
     rts
 
 draw_init_screen:
-    stz robo_jump_time      ; Initialize robo jump flag to 0
-    lda #%11000000          ; Set cursor 2nd row 1st char
-    sta robo_position       ; Store initial robo_position
+    stz hurdle_spacing_count            ; Initialize hurdle spacing count to 0
+    stz robo_jump_time                  ; Initialize robo jump flag to 0
+    lda #LCD_ADDR_LAST_ROW_LAST_CHAR    ; Set cursor 2nd row last char
+    sta hurdle_spawn_position           ; Store hurdle spawn_position
+    lda #LCD_ADDR_LAST_ROW_FIRST_CHAR   ; Set cursor 2nd row 1st char
+    sta robo_position                   ; Store initial robo_position
     inc robo_position
     jsr lcd_instruction
     lda #GROUND_SPRITE
@@ -172,6 +184,30 @@ draw_init_screen:
     jsr print_char
     rts
 
+draw_hurdle:
+    inc hurdle_spawn_position
+    lda hurdle_spawn_position
+    cmp #LCD_ADDR_LAST_ROW_LAST_CHAR   ; Reset counter at last address for line 2
+    beq reset_hurdle_spawn
+draw_hurdle_check_spacing:
+    inc hurdle_spacing_count
+    lda hurdle_spacing_count
+    cmp #HURDLE_SPACING
+    bne draw_hurdle_end
+draw_hurdle_draw:
+    stz hurdle_spacing_count    ; Reset `hurdle_spacing_count`
+    lda hurdle_spawn_position   ; Load hurdle spawn
+    jsr set_cursor_address      ; AX now has new hurdle address, set cursor 
+    lda #HURDLE_SPRITE
+    jsr print_char
+draw_hurdle_end:
+    rts
+
+reset_hurdle_spawn:
+    lda #LCD_ADDR_LAST_ROW_FIRST_CHAR  ; Set cursor 2nd row 1st char
+    sta hurdle_spawn_position          ; Store hurdle_spawn_position
+    jmp draw_hurdle_check_spacing
+
 draw_robo_sprite:
     ; Store previous robo position
     ldx robo_position
@@ -179,7 +215,7 @@ draw_robo_sprite:
     inc robo_position
     ; Reset position if over LCD address limit
     lda robo_position
-    cmp #%11101000          ;   Reset counter at 11101000 (last address for line 2)
+    cmp #LCD_ADDR_LAST_ROW_LAST_CHAR   ; Reset counter at last address for line 2
     beq reset_robo_counter
 draw_robo_sprite_check_jump:
     ; Check robo_jump_time
@@ -222,8 +258,8 @@ handle_robo_jump_time:
     jmp draw_robo_sprite_redraw
 
 reset_robo_counter:
-    lda #%11000000          ; Set cursor 2nd row 1st char
-    sta robo_position       ; Store initial robo_position
+    lda #LCD_ADDR_LAST_ROW_FIRST_CHAR  ; Set cursor 2nd row 1st char
+    sta robo_position                   ; Store initial robo_position
     jmp draw_robo_sprite_check_jump
 
 wait:
