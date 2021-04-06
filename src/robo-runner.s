@@ -20,7 +20,8 @@ BLANK_SPRITE =   %11111110
 LCD_SHIFT_DISPLAY_LEFT = %00011000
 
 ; LCD Cursor Addresses
-LCD_ADDR_LAST_ROW_LAST_CHAR = %11101000
+LCD_ADDR_OVERFLOW = %11101000
+LCD_ADDR_LAST_ROW_LAST_CHAR = %11100111
 LCD_ADDR_LAST_ROW_FIRST_CHAR = %11000000
 
 ; Game Constants
@@ -155,7 +156,7 @@ sprite_test:
 draw_init_screen:
     stz hurdle_spacing_count            ; Initialize hurdle spacing count to 0
     stz robo_jump_time                  ; Initialize robo jump flag to 0
-    lda #%11010000                      ; Set cursor 2nd row last char
+    lda #%11010000                      ; Set to 2nd row 10th char 
     sta hurdle_spawn_position           ; Store hurdle spawn_position
     lda #LCD_ADDR_LAST_ROW_FIRST_CHAR   ; Set cursor 2nd row 1st char
     sta robo_position                   ; Store initial robo_position
@@ -221,7 +222,7 @@ draw_robo_sprite:
     inc robo_position
     ; Reset position if over LCD address limit
     lda robo_position
-    cmp #LCD_ADDR_LAST_ROW_LAST_CHAR   ; Reset counter at last address for line 2
+    cmp #LCD_ADDR_OVERFLOW   ; Reset counter if past last address for line 2
     beq reset_robo_counter
 draw_robo_sprite_check_jump:
     ; Check robo_jump_time
