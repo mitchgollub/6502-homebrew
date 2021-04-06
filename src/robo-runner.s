@@ -155,7 +155,7 @@ sprite_test:
 draw_init_screen:
     stz hurdle_spacing_count            ; Initialize hurdle spacing count to 0
     stz robo_jump_time                  ; Initialize robo jump flag to 0
-    lda #LCD_ADDR_LAST_ROW_LAST_CHAR    ; Set cursor 2nd row last char
+    lda #%11010000                      ; Set cursor 2nd row last char
     sta hurdle_spawn_position           ; Store hurdle spawn_position
     lda #LCD_ADDR_LAST_ROW_FIRST_CHAR   ; Set cursor 2nd row 1st char
     sta robo_position                   ; Store initial robo_position
