@@ -24,7 +24,7 @@ LCD_ADDR_LAST_ROW_LAST_CHAR = %11101000
 LCD_ADDR_LAST_ROW_FIRST_CHAR = %11000000
 
 ; Game Constants
-DRAW_LOOP_WAIT_TIME = $00
+DRAW_LOOP_WAIT_TIME = $ff
 ROBO_JUMP_UP_TIME   = $03
 HURDLE_SPACING      = $07
 
@@ -270,9 +270,14 @@ reset_robo_counter:
 
 wait:
     ldx #DRAW_LOOP_WAIT_TIME
+    ldy #DRAW_LOOP_WAIT_TIME
 wait_loop:
     dex
     txa
+    cmp #$00
+    bne wait_loop
+    dey 
+    tya
     cmp #$00
     bne wait_loop
     rts
