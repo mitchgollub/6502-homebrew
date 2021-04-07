@@ -20,7 +20,8 @@ BLANK_SPRITE =   %11111110
 LCD_SHIFT_DISPLAY_LEFT = %00011000
 
 ; LCD Cursor Addresses
-LCD_ADDR_OVERFLOW = %11101000
+LCD_ADDR_FIRST_OVERFLOW = %10101000
+LCD_ADDR_SECOND_OVERFLOW = %11101000
 LCD_ADDR_LAST_ROW_LAST_CHAR = %11100111
 LCD_ADDR_LAST_ROW_FIRST_CHAR = %11000000
 
@@ -36,6 +37,9 @@ robo_jump_time  = $0201         ; 1 byte (holds the remaing draw cycles robo is 
 hurdle_spacing_count = $0202    ; 1 byte (set by `HURDLE_SPACING`, adds hurdle to course)
 hurdle_spawn_position = $0203   ; 1 byte (holds hurdle spawn address)
 init_draw_cursor    = $0204     ; 1 byte (used during init to draw the first screen)
+
+hurdle_count    = $0205         ; 1 byte (# of hurdles present on screen)
+hurdle_count_display_position = $0206 ; 1 byte
 
 ; ROM memory addresses 8000 -> FFFF
     .org $8000
@@ -76,6 +80,9 @@ draw_loop:              ;   Draw loop
     jsr draw_hurdle
     ; draw robo sprite
     jsr draw_robo_sprite
+    ; calculate collision
+    jsr calculate_collision
+    ; draw loop wait
     jsr wait
     jmp draw_loop
     
@@ -154,9 +161,12 @@ sprite_test:
     rts
 
 draw_init_screen:
+    lda #%10001111
+    sta hurdle_count_display_position
+    stz hurdle_count
     stz hurdle_spacing_count            ; Initialize hurdle spacing count to 0
     stz robo_jump_time                  ; Initialize robo jump flag to 0
-    lda #%11010000                      ; Set to 2nd row 10th char 
+    lda #%11010000                      ; Set to 2nd row 16th char 
     sta hurdle_spawn_position           ; Store hurdle spawn_position
     lda #LCD_ADDR_LAST_ROW_FIRST_CHAR   ; Set cursor 2nd row 1st char
     sta robo_position                   ; Store initial robo_position
@@ -202,6 +212,7 @@ draw_hurdle_draw:
     jsr set_cursor_address
     lda #HURDLE_SPRITE
     jsr print_char
+    inc hurdle_count
     rts
 draw_hurdle_end:
     lda hurdle_spawn_position   ; Load hurdle spawn
@@ -222,7 +233,7 @@ draw_robo_sprite:
     inc robo_position
     ; Reset position if over LCD address limit
     lda robo_position
-    cmp #LCD_ADDR_OVERFLOW   ; Reset counter if past last address for line 2
+    cmp #LCD_ADDR_SECOND_OVERFLOW   ; Reset counter if past last address for line 2
     beq reset_robo_counter
 draw_robo_sprite_check_jump:
     ; Check robo_jump_time
@@ -268,6 +279,28 @@ reset_robo_counter:
     lda #LCD_ADDR_LAST_ROW_FIRST_CHAR  ; Set cursor 2nd row 1st char
     sta robo_position                   ; Store initial robo_position
     jmp draw_robo_sprite_check_jump
+
+calculate_collision:
+    ; draw hurdle count
+    lda hurdle_count_display_position
+    jsr set_cursor_address
+    lda #BLANK_SPRITE
+    jsr print_char
+    inc hurdle_count_display_position
+    lda hurdle_count_display_position
+    cmp #LCD_ADDR_FIRST_OVERFLOW
+    beq reset_count_display
+draw_hurdle_count:
+    lda hurdle_count_display_position
+    jsr set_cursor_address
+    lda hurdle_count
+    adc #%00110000
+    jsr print_char
+    rts
+reset_count_display:
+    lda #%10000000
+    sta hurdle_count_display_position
+    jmp draw_hurdle_count
 
 wait:
     ldx #DRAW_LOOP_WAIT_TIME
