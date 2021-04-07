@@ -37,9 +37,10 @@ robo_jump_time  = $0201         ; 1 byte (holds the remaing draw cycles robo is 
 hurdle_spacing_count = $0202    ; 1 byte (set by `HURDLE_SPACING`, adds hurdle to course)
 hurdle_spawn_position = $0203   ; 1 byte (holds hurdle spawn address)
 init_draw_cursor    = $0204     ; 1 byte (used during init to draw the first screen)
-
 hurdle_count    = $0205         ; 1 byte (# of hurdles present on screen)
 hurdle_count_display_position = $0206 ; 1 byte
+robo_score      = $0207         ; 1 byte (holds the player score)
+hurdle_position = $0208         ; 1 byte holds hurdle position for collision check
 
 ; ROM memory addresses 8000 -> FFFF
     .org $8000
@@ -164,10 +165,12 @@ draw_init_screen:
     lda #%10001111
     sta hurdle_count_display_position
     stz hurdle_count
+    stz robo_score                      ; Initialize Robo Score
     stz hurdle_spacing_count            ; Initialize hurdle spacing count to 0
     stz robo_jump_time                  ; Initialize robo jump flag to 0
     lda #%11010000                      ; Set to 2nd row 16th char 
     sta hurdle_spawn_position           ; Store hurdle spawn_position
+    sta hurdle_position                 ; Store hurdle position
     lda #LCD_ADDR_LAST_ROW_FIRST_CHAR   ; Set cursor 2nd row 1st char
     sta robo_position                   ; Store initial robo_position
     inc robo_position
@@ -281,6 +284,11 @@ reset_robo_counter:
     jmp draw_robo_sprite_check_jump
 
 calculate_collision:
+    ; Check robo_position w/ closest hurdle
+    lda robo_position
+    cmp hurdle_position
+    beq game_over
+
     ; draw hurdle count
     lda hurdle_count_display_position
     jsr set_cursor_address
@@ -293,7 +301,8 @@ calculate_collision:
 draw_hurdle_count:
     lda hurdle_count_display_position
     jsr set_cursor_address
-    lda hurdle_count
+    ; lda hurdle_count
+    lda robo_score
     adc #%00110000
     jsr print_char
     rts
@@ -301,6 +310,22 @@ reset_count_display:
     lda #%10000000
     sta hurdle_count_display_position
     jmp draw_hurdle_count
+
+game_over:
+    ldx #0
+    lda robo_position
+    and #%10111111          ; Set to line one
+    jsr set_cursor_address
+game_over_message_draw:
+    lda game_over_message,x
+    beq game_over_loop
+    jsr print_char
+    inx
+    jmp game_over_message_draw
+game_over_loop:
+    jmp game_over_loop
+
+game_over_message: .asciiz "Game Over"
 
 wait:
     ldx #DRAW_LOOP_WAIT_TIME
