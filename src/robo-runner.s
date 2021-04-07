@@ -40,7 +40,7 @@ init_draw_cursor    = $0204     ; 1 byte (used during init to draw the first scr
 hurdle_count    = $0205         ; 1 byte (# of hurdles present on screen)
 hurdle_count_display_position = $0206 ; 1 byte
 robo_score      = $0207         ; 1 byte (holds the player score)
-hurdle_position = $0208         ; 1 byte holds hurdle position for collision check
+hurdle_position = $0208         ; 4 bytes holds hurdle positions for collision check
 
 ; ROM memory addresses 8000 -> FFFF
     .org $8000
@@ -168,9 +168,9 @@ draw_init_screen:
     stz robo_score                      ; Initialize Robo Score
     stz hurdle_spacing_count            ; Initialize hurdle spacing count to 0
     stz robo_jump_time                  ; Initialize robo jump flag to 0
+    stz hurdle_position                 ; Store hurdle position
     lda #%11010000                      ; Set to 2nd row 16th char 
     sta hurdle_spawn_position           ; Store hurdle spawn_position
-    sta hurdle_position                 ; Store hurdle position
     lda #LCD_ADDR_LAST_ROW_FIRST_CHAR   ; Set cursor 2nd row 1st char
     sta robo_position                   ; Store initial robo_position
     inc robo_position
@@ -215,6 +215,9 @@ draw_hurdle_draw:
     jsr set_cursor_address
     lda #HURDLE_SPRITE
     jsr print_char
+    ldy hurdle_count
+    lda hurdle_spawn_position
+    sta hurdle_position,y
     inc hurdle_count
     rts
 draw_hurdle_end:
