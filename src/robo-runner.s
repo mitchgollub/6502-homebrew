@@ -230,6 +230,10 @@ reset_hurdle_spawn:
     jmp draw_hurdle_check_spacing
 
 draw_robo_sprite:
+    ; reset the position from any jump adjustment
+    lda robo_position
+    ora #%01000000
+    sta robo_position
     ; Store previous robo position
     ldx robo_position
     ; Increment robo position in memory to current
@@ -264,10 +268,6 @@ draw_robo_sprite_redraw:
     jsr set_cursor_address
     lda #ROBO_SPRITE
     jsr print_char
-    ; reset the position from the jump adjustment (if needed?)
-    lda robo_position
-    ora #%01000000
-    sta robo_position
     rts
 
 handle_robo_jump_time:
