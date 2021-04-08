@@ -295,14 +295,15 @@ reset_robo_counter:
 ; Check robo_position w/ closest hurdle
 calculate_collision:
     lda robo_position
-    cmp hurdle_position
-    beq game_over
+    cmp hurdle_position         ; TODO: fix bug where robo position > hurdle position 
+    beq game_over               ;       on LCD screen wraparound
     bmi draw_score
 ; Clean up stale hurdles
 clean_stale_hurdles:
     ldx #1                      ; "Next" hurdle
     ldy #0                      ; "Current" hurdle
     dec hurdle_count            ; decrease total hurdles
+    inc robo_score              ; Made it past a hurdle! +1!
 clean_stale_hurdles_loop
     lda hurdle_position,x       ; Load "Next" hurdle position       
     sta hurdle_position,y       ; Store "Next" back to "Current" hurdle position
@@ -325,8 +326,7 @@ draw_score:
 draw_hurdle_count:
     lda hurdle_count_display_position
     jsr set_cursor_address
-    lda hurdle_count
-    ; lda robo_score
+    lda robo_score
     adc #%00110000
     jsr print_char
     rts
