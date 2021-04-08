@@ -26,7 +26,7 @@ LCD_ADDR_LAST_ROW_LAST_CHAR = %11100111
 LCD_ADDR_LAST_ROW_FIRST_CHAR = %11000000
 
 ; Game Constants
-DRAW_LOOP_WAIT_TIME = $ff
+DRAW_LOOP_WAIT_TIME = $aa
 ROBO_JUMP_UP_TIME   = $03
 HURDLE_SPACING      = $07
 
@@ -168,7 +168,13 @@ draw_init_screen:
     stz robo_score                      ; Initialize Robo Score
     stz hurdle_spacing_count            ; Initialize hurdle spacing count to 0
     stz robo_jump_time                  ; Initialize robo jump flag to 0
-    stz hurdle_position                 ; Store hurdle position
+    stz hurdle_position                 ; Initialize hurdle positions
+    ldx #1
+    stz hurdle_position,x
+    ldx #2
+    stz hurdle_position,x
+    ldx #3
+    stz hurdle_position,x
     lda #%11010000                      ; Set to 2nd row 16th char 
     sta hurdle_spawn_position           ; Store hurdle spawn_position
     lda #LCD_ADDR_LAST_ROW_FIRST_CHAR   ; Set cursor 2nd row 1st char
@@ -286,13 +292,28 @@ reset_robo_counter:
     sta robo_position                   ; Store initial robo_position
     jmp draw_robo_sprite_check_jump
 
+; Check robo_position w/ closest hurdle
 calculate_collision:
-    ; Check robo_position w/ closest hurdle
     lda robo_position
     cmp hurdle_position
     beq game_over
+    bmi draw_score
+; Clean up stale hurdles
+clean_stale_hurdles:
+    ldx #1                      ; "Next" hurdle
+    ldy #0                      ; "Current" hurdle
+    dec hurdle_count            ; decrease total hurdles
+clean_stale_hurdles_loop
+    lda hurdle_position,x       ; Load "Next" hurdle position       
+    sta hurdle_position,y       ; Store "Next" back to "Current" hurdle position
+    inx                         ; Move to next hurdle positions
+    iny
+    lda hurdle_position,x       ; Peek at "Next" hurdle position
+    cmp #0                      ; if empty, we've reached end of hurdles
+    bne clean_stale_hurdles_loop; repeat until we've reached the end
 
-    ; draw hurdle count
+; Draw player score
+draw_score:
     lda hurdle_count_display_position
     jsr set_cursor_address
     lda #BLANK_SPRITE
@@ -304,8 +325,8 @@ calculate_collision:
 draw_hurdle_count:
     lda hurdle_count_display_position
     jsr set_cursor_address
-    ; lda hurdle_count
-    lda robo_score
+    lda hurdle_count
+    ; lda robo_score
     adc #%00110000
     jsr print_char
     rts
