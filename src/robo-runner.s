@@ -65,7 +65,7 @@ reset:
     lda #%00111000  ;   8-bit - 2 line - 5x8 font (001<DL><N><F>xx)   
     jsr lcd_instruction
 
-    lda #%00001110  ;   Display on - Cursor on - Blink off 
+    lda #%00001100  ;   Display on - Cursor off - Blink off 
     jsr lcd_instruction
 
     lda #%00000110  ;   Increment and shift cursor - don't shift display
@@ -177,12 +177,11 @@ draw_init_screen:
     lda #%11010000                      ; Set to 2nd row 16th char 
     sta hurdle_spawn_position           ; Store hurdle spawn_position
     lda #LCD_ADDR_LAST_ROW_FIRST_CHAR   ; Set cursor 2nd row 1st char
+    sta init_draw_cursor                ; Store beginning of draw screen
     sta robo_position                   ; Store initial robo_position
     inc robo_position
     jsr lcd_instruction                 ; Set starting cursor to 2nd row 1st char
 
-    lda #LCD_ADDR_LAST_ROW_FIRST_CHAR   ; TODO: Do you need this?  AX is already this value
-    sta init_draw_cursor
 ; loop through 40H - 67H to draw game sprites
 draw_init_course:
     cmp robo_position               ; if robo_position, draw robo sprite
