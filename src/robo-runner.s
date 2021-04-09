@@ -83,6 +83,7 @@ reset:
 draw_loop:
     jsr draw_hurdle             ; draw hurdle
     jsr draw_robo_sprite        ; draw robo sprite
+    jsr draw_score              ; draw user score
     jsr calculate_collision     ; calculate collision
     jsr wait                    ; draw loop wait for game speed
     jmp draw_loop
@@ -294,10 +295,11 @@ reset_robo_counter:
 ; TODO: fix bug where robo position > hurdle position 
 ;       on LCD screen wraparound
 calculate_collision:
-    lda robo_position
+    lda robo_position           ; Compare Robo position and closest hurdle
     cmp hurdle_position
-    beq game_over
-    bmi draw_score
+    beq game_over               ; If equal, game_over
+    bpl clean_stale_hurdles     ; If Robo is ahead of first hurdle, clean up hurdle memory
+    rts
 ; Clean up stale hurdles
 clean_stale_hurdles:
     ldx #1                      ; "Next" hurdle
@@ -312,6 +314,7 @@ clean_stale_hurdles_loop
     lda hurdle_position,x       ; Peek at "Next" hurdle position
     cmp #0                      ; if empty, we've reached end of hurdles
     bne clean_stale_hurdles_loop; repeat until we've reached the end
+    rts
 
 ; Draw player score
 ; TODO: fix score jumping on LCD wrap (score 1-2)
@@ -323,7 +326,10 @@ draw_score:
     inc robo_score_display_position
     lda robo_score_display_position
     cmp #LCD_ADDR_FIRST_OVERFLOW
-    beq reset_count_display
+    bne draw_hurdle_count
+reset_count_display:
+    lda #%10000000
+    sta robo_score_display_position
 draw_hurdle_count:
     lda robo_score_display_position
     jsr set_cursor_address
@@ -331,13 +337,8 @@ draw_hurdle_count:
     adc #%00110000
     jsr print_char
     rts
-reset_count_display:
-    lda #%10000000
-    sta robo_score_display_position
-    jmp draw_hurdle_count
 
 ; Game over, draw message and send to game over loop
-; TODO: fix display left shift on gameover (score moves left)
 ; TODO: implement screen flicker
 game_over:
     ldx #0
