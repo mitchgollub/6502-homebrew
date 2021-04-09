@@ -251,12 +251,21 @@ draw_robo_sprite:
     ; Reset position if over LCD address limit
     lda robo_position
     cmp #LCD_ADDR_SECOND_OVERFLOW   ; Reset counter if past last address for line 2
-    beq reset_robo_counter
+    bne draw_robo_sprite_check_jump
+reset_robo_counter:
+    lda #LCD_ADDR_LAST_ROW_FIRST_CHAR  ; Set cursor 2nd row 1st char
+    sta robo_position                   ; Store initial robo_position
 draw_robo_sprite_check_jump:
     ; Check robo_jump_time
     lda robo_jump_time
     cmp #$00
-    bne handle_robo_jump_time
+    beq draw_robo_sprite_redraw
+handle_robo_jump_time:
+    dec robo_jump_time
+    lda robo_position
+    ; Set robo_position to line 1
+    and #%10111111          ; 0 at D6 is line 1 for LCD
+    sta robo_position
 draw_robo_sprite_redraw:
     ; Clear previous robo position
     txa
@@ -269,35 +278,31 @@ draw_robo_sprite_redraw:
     jsr set_cursor_address
     lda #BLANK_SPRITE
     jsr print_char
-    ; Shift display/characters left 
-    ; done while robo is off display to remove afterimage
-    lda #LCD_SHIFT_DISPLAY_LEFT
-    jsr lcd_instruction
-    ; draw robo at new position
-    lda robo_position
+    lda #LCD_SHIFT_DISPLAY_LEFT         ; Shift display/characters left 
+    jsr lcd_instruction                 ; done while robo is off display to remove afterimage
+    lda robo_position                   ; draw robo at new position
     jsr set_cursor_address
     lda #ROBO_SPRITE
     jsr print_char
-    rts
-handle_robo_jump_time:
-    dec robo_jump_time
-    lda robo_position
-    ; Set robo_position to line 1
-    and #%10111111          ; 0 at D6 is line 1 for LCD
+    lda robo_position                  ; reset the position from potential jump adjustment
+    ora #%01000000
     sta robo_position
-    jmp draw_robo_sprite_redraw
-reset_robo_counter:
-    lda #LCD_ADDR_LAST_ROW_FIRST_CHAR  ; Set cursor 2nd row 1st char
-    sta robo_position                   ; Store initial robo_position
-    jmp draw_robo_sprite_check_jump
+    rts
 
 ; Check robo_position w/ closest hurdle to determine game status
 ; TODO: fix bug where robo position > hurdle position 
 ;       on LCD screen wraparound
 calculate_collision:
+    lda robo_jump_time
+    cmp #0
+    bne clean_stale_hurdles_check
+collision_game_over_check:
     lda robo_position           ; Compare Robo position and closest hurdle
     cmp hurdle_position
     beq game_over               ; If equal, game_over
+clean_stale_hurdles_check:
+    lda robo_position           ; Compare Robo position (from ground) and closest hurdle
+    cmp hurdle_position
     bpl clean_stale_hurdles     ; If Robo is ahead of first hurdle, clean up hurdle memory
     rts
 ; Clean up stale hurdles
@@ -373,11 +378,11 @@ wait:
 wait_loop:
     dex
     txa
-    cmp #$00
+    cmp #0
     bne wait_loop
     dey 
     tya
-    cmp #$00
+    cmp #0
     bne wait_loop
     rts
 
