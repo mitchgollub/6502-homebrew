@@ -290,22 +290,15 @@ draw_robo_sprite_redraw:
     rts
 
 ; Check robo_position w/ closest hurdle to determine game status
-; TODO: fix bug where robo position > hurdle position 
-;       on LCD screen wraparound
 calculate_collision:
+    lda robo_position           ; Compare Robo position (from ground) and closest hurdle
+    cmp hurdle_position
+    beq jump_check
+    rts
+jump_check:
     lda robo_jump_time
     cmp #0
-    bne clean_stale_hurdles_check
-collision_game_over_check:
-    lda robo_position           ; Compare Robo position (from ground) and closest hurdle
-    cmp hurdle_position
-    beq game_over               ; If equal, game_over
-clean_stale_hurdles_check:
-    lda robo_position           ; Compare Robo position (from ground) and closest hurdle
-    cmp hurdle_position
-    beq clean_stale_hurdles     ; If Robo is ON first hurdle while jumped, clean up hurdle memory
-    rts
-; Clean up stale hurdles
+    beq game_over               ; If Robo is jumping, clean up hurdles. Else game over
 clean_stale_hurdles:
     ldx #1                      ; "Next" hurdle
     ldy #0                      ; "Current" hurdle
@@ -322,7 +315,6 @@ clean_stale_hurdles_loop
     rts
 
 ; Draw player score
-; TODO: fix score jumping on LCD wrap (score 1-2)
 draw_score:
     lda robo_score_display_position
     jsr set_cursor_address
