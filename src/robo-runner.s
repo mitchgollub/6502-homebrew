@@ -297,13 +297,13 @@ calculate_collision:
     cmp #0
     bne clean_stale_hurdles_check
 collision_game_over_check:
-    lda robo_position           ; Compare Robo position and closest hurdle
+    lda robo_position           ; Compare Robo position (from ground) and closest hurdle
     cmp hurdle_position
     beq game_over               ; If equal, game_over
 clean_stale_hurdles_check:
     lda robo_position           ; Compare Robo position (from ground) and closest hurdle
     cmp hurdle_position
-    bpl clean_stale_hurdles     ; If Robo is ahead of first hurdle, clean up hurdle memory
+    beq clean_stale_hurdles     ; If Robo is ON first hurdle while jumped, clean up hurdle memory
     rts
 ; Clean up stale hurdles
 clean_stale_hurdles:
