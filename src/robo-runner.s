@@ -22,8 +22,9 @@ LCD_SHIFT_DISPLAY_LEFT = %00011000
 ; LCD Cursor Addresses
 LCD_ADDR_FIRST_OVERFLOW = %10101000
 LCD_ADDR_SECOND_OVERFLOW = %11101000
-LCD_ADDR_LAST_ROW_LAST_CHAR = %11100111
+LCD_ADDR_FIRST_ROW_FIRST_CHAR = %10000000
 LCD_ADDR_LAST_ROW_FIRST_CHAR = %11000000
+LCD_ADDR_LAST_ROW_LAST_CHAR = %11100111
 LCD_ADDR_TOP_RIGHT_CORNER = %10001111
 
 ; Game Constants
@@ -126,6 +127,7 @@ lcdbusy:
     rts
 
 lcd_instruction:
+    pha
     jsr lcd_wait 
     sta PORTB
     lda #%0         ;   Clear RS/RW/E bits
@@ -134,6 +136,7 @@ lcd_instruction:
     sta PORTA
     lda #%0         ;   Enable bit OFF   
     sta PORTA
+    pla
     rts
 
 print_char:
@@ -288,10 +291,12 @@ reset_robo_counter:
     jmp draw_robo_sprite_check_jump
 
 ; Check robo_position w/ closest hurdle to determine game status
+; TODO: fix bug where robo position > hurdle position 
+;       on LCD screen wraparound
 calculate_collision:
     lda robo_position
-    cmp hurdle_position         ; TODO: fix bug where robo position > hurdle position 
-    beq game_over               ;       on LCD screen wraparound
+    cmp hurdle_position
+    beq game_over
     bmi draw_score
 ; Clean up stale hurdles
 clean_stale_hurdles:
@@ -309,6 +314,7 @@ clean_stale_hurdles_loop
     bne clean_stale_hurdles_loop; repeat until we've reached the end
 
 ; Draw player score
+; TODO: fix score jumping on LCD wrap (score 1-2)
 draw_score:
     lda robo_score_display_position
     jsr set_cursor_address
@@ -331,17 +337,29 @@ reset_count_display:
     jmp draw_hurdle_count
 
 ; Game over, draw message and send to game over loop
+; TODO: fix display left shift on gameover (score moves left)
+; TODO: implement screen flicker
 game_over:
     ldx #0
-    lda robo_position
-    and #%10111111          ; Set to line one
+    lda robo_position           ; print message above robo
+    and #%10111111              ; Set to line one
+    tay                         ; hold cursor address in Y
     jsr set_cursor_address
-game_over_message_draw:         ; TODO: Fix bug where message prints on two LCD lines (Fail on 3rd hurdle)
-    lda game_over_message,x
+    jmp game_over_message_draw  ; No need to check cursor on first run
+game_over_message_line_check:           ; check to make message print on one LCD line
+    tya                                 ; hold cursor address in Y
+    cmp #LCD_ADDR_FIRST_OVERFLOW
+    bne game_over_message_draw          ; set cursor address to first row if on second row
+    lda #LCD_ADDR_FIRST_ROW_FIRST_CHAR
+    tay
+    jsr set_cursor_address
+game_over_message_draw:
+    lda game_over_message,x             ; Loop over game over message string
     beq game_over_loop
     jsr print_char
-    inx
-    jmp game_over_message_draw
+    inx                                 ; increase message pointer
+    iny                                 ; increase cursor pointer
+    jmp game_over_message_line_check    ; check if we've left first row
 game_over_loop:
     jmp game_over_loop
 
