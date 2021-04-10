@@ -374,6 +374,7 @@ wait_loop:
     rts
 
 ; Interrupt subroutines
+; TODO: Only jump if ROBO_JUMP_TIME == 0
 set_robo_jump_time:
     pha
     lda #ROBO_JUMP_UP_TIME
