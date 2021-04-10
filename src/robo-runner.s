@@ -241,66 +241,58 @@ reset_hurdle_spawn:
 
 ; Subroutine to calculate position and jumps to draw robo sprite
 draw_robo_sprite:
-    lda robo_position                  ; reset the position from potential jump adjustment
-    ora #%01000000
-    sta robo_position
-    ; Store previous robo position
-    ldx robo_position
-    ; Increment robo position in memory to current
-    inc robo_position
-    ; Reset position if over LCD address limit
-    lda robo_position
-    cmp #LCD_ADDR_SECOND_OVERFLOW   ; Reset counter if past last address for line 2
-    beq reset_robo_counter
+    jsr set_robo_position_to_ground     ; Set Robo on ground
+    ldx robo_position                   ; Store previous robo position
+    inc robo_position                   ; Increment robo position in memory to current
+    lda robo_position                   ; Reset position if over LCD address limit
+    cmp #LCD_ADDR_SECOND_OVERFLOW       ; Reset counter if past last address for line 2
+    bne draw_robo_sprite_check_jump
+reset_robo_counter:
+    lda #LCD_ADDR_LAST_ROW_FIRST_CHAR   ; Set cursor 2nd row 1st char
+    sta robo_position                   ; Store initial robo_position
 draw_robo_sprite_check_jump:
-    ; Check robo_jump_time
-    lda robo_jump_time
+    lda robo_jump_time                  ; Check robo_jump_time
     cmp #$00
-    bne handle_robo_jump_time
+    beq draw_robo_sprite_redraw
+handle_robo_jump_time:
+    dec robo_jump_time
+    lda robo_position               ; Set robo_position to line 1
+    and #%10111111                  ; 0 at D6 is line 1 for LCD
+    sta robo_position
 draw_robo_sprite_redraw:
-    ; Clear previous robo position
-    txa
+    txa                             ; Clear previous robo sprite
     jsr set_cursor_address
-    lda #GROUND_SPRITE
+    lda #GROUND_SPRITE              ; Draw ground on previous position
     jsr print_char
-    ; Clear top row too
-    txa
-    and #%10111111
+    txa 
+    and #%10111111                  ; Clear top row sprite too
     jsr set_cursor_address
     lda #BLANK_SPRITE
     jsr print_char
-    ; Shift display/characters left 
-    ; done while robo is off display to remove afterimage
-    lda #LCD_SHIFT_DISPLAY_LEFT
-    jsr lcd_instruction
-    ; draw robo at new position
-    lda robo_position
+    lda #LCD_SHIFT_DISPLAY_LEFT     ; Shift display/characters left 
+    jsr lcd_instruction             ; done while robo is off display to remove afterimage
+    lda robo_position               ; draw robo at new position
     jsr set_cursor_address
     lda #ROBO_SPRITE
     jsr print_char
+    jsr set_robo_position_to_ground
     rts
-handle_robo_jump_time:
-    dec robo_jump_time
-    lda robo_position
-    ; Set robo_position to line 1
-    and #%10111111          ; 0 at D6 is line 1 for LCD
-    sta robo_position
-    jmp draw_robo_sprite_redraw
-reset_robo_counter:
-    lda #LCD_ADDR_LAST_ROW_FIRST_CHAR  ; Set cursor 2nd row 1st char
-    sta robo_position                   ; Store initial robo_position
-    jmp draw_robo_sprite_check_jump
+set_robo_position_to_ground:
+    lda robo_position                   ; reset the position from potential jump adjustment
+    ora #%01000000                      ; Set to 2nd row
+    sta robo_position                   ; Store position back to memory
+    rts
 
 ; Check robo_position w/ closest hurdle to determine game status
-; TODO: fix bug where robo position > hurdle position 
-;       on LCD screen wraparound
 calculate_collision:
-    lda robo_position           ; Compare Robo position and closest hurdle
+    lda robo_position           ; Compare Robo position (from ground) and closest hurdle
     cmp hurdle_position
-    beq game_over               ; If equal, game_over
-    bpl clean_stale_hurdles     ; If Robo is ahead of first hurdle, clean up hurdle memory
+    beq jump_check
     rts
-; Clean up stale hurdles
+jump_check:
+    lda robo_jump_time
+    cmp #0
+    beq game_over               ; If Robo is jumping, clean up hurdles. Else game over
 clean_stale_hurdles:
     ldx #1                      ; "Next" hurdle
     ldy #0                      ; "Current" hurdle
@@ -318,6 +310,9 @@ clean_stale_hurdles_loop
 
 ; Draw player score
 ; TODO: fix score jumping on LCD wrap (score 1-2)
+;       Unrelated to robo_score variable.
+;       Regardless of value, LCD screen character jumps up one for some cycles
+;       Might be resolved once I convert score to ascii
 draw_score:
     lda robo_score_display_position
     jsr set_cursor_address
@@ -326,11 +321,11 @@ draw_score:
     inc robo_score_display_position
     lda robo_score_display_position
     cmp #LCD_ADDR_FIRST_OVERFLOW
-    bne draw_hurdle_count
+    bne draw_robo_score
 reset_count_display:
     lda #%10000000
     sta robo_score_display_position
-draw_hurdle_count:
+draw_robo_score:
     lda robo_score_display_position
     jsr set_cursor_address
     lda robo_score
@@ -373,15 +368,16 @@ wait:
 wait_loop:
     dex
     txa
-    cmp #$00
+    cmp #0
     bne wait_loop
     dey 
     tya
-    cmp #$00
+    cmp #0
     bne wait_loop
     rts
 
 ; Interrupt subroutines
+; TODO: Only jump if ROBO_JUMP_TIME == 0
 set_robo_jump_time:
     pha
     lda #ROBO_JUMP_UP_TIME
