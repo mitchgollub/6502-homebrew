@@ -377,11 +377,15 @@ wait_loop:
     rts
 
 ; Interrupt subroutines
-; TODO: Only jump if ROBO_JUMP_TIME == 0
+; Sets robo jump flag if not already set
 set_robo_jump_time:
     pha
+    lda robo_jump_time
+    cmp #0
+    bne set_robo_jump_time_end  ; Only jump if robo_jump_time == 0
     lda #ROBO_JUMP_UP_TIME
     sta robo_jump_time
+set_robo_jump_time_end:
     pla
     rts
 
