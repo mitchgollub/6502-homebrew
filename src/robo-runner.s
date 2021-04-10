@@ -310,6 +310,9 @@ clean_stale_hurdles_loop
 
 ; Draw player score
 ; TODO: fix score jumping on LCD wrap (score 1-2)
+;       Unrelated to robo_score variable.
+;       Regardless of value, LCD screen character jumps up one for some cycles
+;       Might be resolved once I convert score to ascii
 draw_score:
     lda robo_score_display_position
     jsr set_cursor_address
@@ -318,11 +321,11 @@ draw_score:
     inc robo_score_display_position
     lda robo_score_display_position
     cmp #LCD_ADDR_FIRST_OVERFLOW
-    bne draw_hurdle_count
+    bne draw_robo_score
 reset_count_display:
     lda #%10000000
     sta robo_score_display_position
-draw_hurdle_count:
+draw_robo_score:
     lda robo_score_display_position
     jsr set_cursor_address
     lda robo_score
