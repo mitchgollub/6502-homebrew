@@ -60,7 +60,7 @@ print_interrupt_loop:
     iny
     jmp print_interrupt_loop
     
-message: .asciiz "I love you!"
+message: .asciiz "Hello World!"
 interrupt_message: .asciiz "Int"
 
 lcd_wait:

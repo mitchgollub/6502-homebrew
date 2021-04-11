@@ -42,7 +42,7 @@ print:
 loop:
     jmp loop
 
-message: .asciiz "I love you!"
+message: .asciiz "Hello World!"
 
 lcd_wait:
     pha
