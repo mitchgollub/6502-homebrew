@@ -18,6 +18,8 @@ BLANK_SPRITE =   %11111110
 
 ; LCD Instructions
 LCD_SHIFT_DISPLAY_LEFT = %00011000
+LCD_SCREEN_OFF = %00001000
+LCD_SCREEN_ON = %00001100
 
 ; LCD Cursor Addresses
 LCD_ADDR_FIRST_OVERFLOW = %10101000
@@ -29,6 +31,7 @@ LCD_ADDR_TOP_RIGHT_CORNER = %10001111
 
 ; Game Constants
 DRAW_LOOP_WAIT_TIME = $aa       ; Controls game speed (lower value = faster game speed)
+GAME_OVER_WAIT_TIME = $99       ; Controls the flicker animation on game over
 ROBO_JUMP_UP_TIME   = 3         ; Spaces Robot can jump
 HURDLE_SPACING      = 7         ; Spaces between hurdle spawns
 
@@ -85,6 +88,7 @@ draw_loop:
     jsr draw_robo_sprite        ; draw robo sprite
     jsr draw_score              ; draw user score
     jsr calculate_collision     ; calculate collision
+    lda #DRAW_LOOP_WAIT_TIME    ; set wait time
     jsr wait                    ; draw loop wait for game speed
     jmp draw_loop
     
@@ -334,8 +338,8 @@ draw_robo_score:
     rts
 
 ; Game over, draw message and send to game over loop
-; TODO: implement screen flicker
 game_over:
+    jsr game_over_flicker
     ldx #0
     lda robo_position           ; print message above robo
     and #%10111111              ; Set to line one
@@ -358,13 +362,39 @@ game_over_message_draw:
     jmp game_over_message_line_check    ; check if we've left first row
 game_over_loop:
     jmp game_over_loop
+game_over_flicker:
+    lda #LCD_SCREEN_OFF
+    jsr lcd_instruction
+    lda #GAME_OVER_WAIT_TIME
+    jsr wait
+    lda #LCD_SCREEN_ON
+    jsr lcd_instruction
+    lda #GAME_OVER_WAIT_TIME
+    jsr wait
+    lda #LCD_SCREEN_OFF
+    jsr lcd_instruction
+    lda #GAME_OVER_WAIT_TIME
+    jsr wait
+    lda #LCD_SCREEN_ON
+    jsr lcd_instruction
+    lda #GAME_OVER_WAIT_TIME
+    jsr wait
+    lda #LCD_SCREEN_OFF
+    jsr lcd_instruction
+    lda #GAME_OVER_WAIT_TIME
+    jsr wait
+    lda #LCD_SCREEN_ON
+    jsr lcd_instruction
+    lda #GAME_OVER_WAIT_TIME
+    rts
 
 game_over_message: .asciiz "Game Over"
 
 ; Subroutine for Draw loop to control game speed
+; Load the time to wait into A before calling
 wait:
-    ldx #DRAW_LOOP_WAIT_TIME
-    ldy #DRAW_LOOP_WAIT_TIME
+    tax
+    tay
 wait_loop:
     dex
     txa
