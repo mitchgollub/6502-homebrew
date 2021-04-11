@@ -1,3 +1,5 @@
+; TODO: Game breaks when jumping over hurdle from "O" to "P"
+
 ; LCD Characters
 ROBO_SPRITE =   %11001110
 GROUND_SPRITE = %01011111
