@@ -9,6 +9,7 @@ DRAW_LOOP_WAIT_TIME = $aa       ; Controls game speed (lower value = faster game
 GAME_OVER_WAIT_TIME = $99       ; Controls the flicker animation on game over
 ROBO_JUMP_UP_TIME   = 3         ; Spaces Robot can jump
 HURDLE_SPACING      = 7         ; Spaces between hurdle spawns
+HURDLE_POSITION_BYTES = 4       ; Bytes of hurdle_position
 
 ; Stack memory locations - 0100 -> 01FF
 ; RAM memory locations - 0200 -> 3FFF (Full range 0000-3FFF)
@@ -20,7 +21,7 @@ init_draw_cursor    = $0204     ; 1 byte (used during init to draw the first scr
 hurdle_count    = $0205         ; 1 byte (# of hurdles present on screen)
 robo_score_display_position = $0206 ; 1 byte (holds the display position for the player score)
 robo_score      = $0207         ; 1 byte (holds the player score)
-hurdle_position = $0208         ; 4 bytes holds hurdle positions for collision check
+hurdle_position = $0208         ; 4 bytes holds hurdle positions for collision check (4 + 1 terminating zero-byte)
 
 ; ROM memory addresses 8000 -> FFFF
     .org $8000
@@ -50,13 +51,14 @@ draw_init_screen:
     stz robo_score                      ; Initialize Robo Score to 0
     stz hurdle_spacing_count            ; Initialize hurdle spacing count to 0
     stz robo_jump_time                  ; Initialize robo jump flag to 0
-    stz hurdle_position                 ; Initialize hurdle positions to 0
-    ldx #1                              ; TODO: Make this a loop to match hurdle_position size
+
+    ldx #0                              ; Initialize hurdle positions to 0
+init_hurdle_position_loop:
     stz hurdle_position,x
-    ldx #2
-    stz hurdle_position,x
-    ldx #3
-    stz hurdle_position,x
+    inx
+    cpx #HURDLE_POSITION_BYTES
+    bne init_hurdle_position_loop
+
     lda #%11010000                      ; Set to 2nd row 16th char 
     sta hurdle_spawn_position           ; Store hurdle spawn_position
     lda #LCD_ADDR_LAST_ROW_FIRST_CHAR   ; Set cursor 2nd row 1st char
@@ -238,13 +240,8 @@ game_over_message_draw:
 game_over_loop:
     jmp game_over_loop
 game_over_flicker:
-    lda #LCD_SCREEN_OFF
-    jsr lcd_instruction
-    lda #GAME_OVER_WAIT_TIME
-    jsr wait
-    lda #LCD_SCREEN_ON
-    jsr lcd_instruction
-    lda #GAME_OVER_WAIT_TIME
+    lda #0 
+    .rept 3
     jsr wait
     lda #LCD_SCREEN_OFF
     jsr lcd_instruction
@@ -253,14 +250,7 @@ game_over_flicker:
     lda #LCD_SCREEN_ON
     jsr lcd_instruction
     lda #GAME_OVER_WAIT_TIME
-    jsr wait
-    lda #LCD_SCREEN_OFF
-    jsr lcd_instruction
-    lda #GAME_OVER_WAIT_TIME
-    jsr wait
-    lda #LCD_SCREEN_ON
-    jsr lcd_instruction
-    lda #GAME_OVER_WAIT_TIME
+    .endr
     rts
 
 game_over_message: .asciiz "Game Over"
