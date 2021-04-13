@@ -169,9 +169,9 @@ draw_score:
     dec robo_score_display_position     ; Go to old tens digit position
     lda robo_score_display_position
     cmp #%01111111                      ; Check if it was at starting position
-    bne draw_score_two
+    bne draw_score_clear_previous
     lda #LCD_ADDR_FIRST_OVERFLOW - 1    ; Move position to last position for BLANK overwrite
-draw_score_two:
+draw_score_clear_previous:
     jsr set_cursor_address
     lda #BLANK_SPRITE
     jsr print_char
@@ -206,9 +206,9 @@ set_next_decimal:
     dec robo_score_display_position
     lda robo_score_display_position
     cmp #%01111111
-    bne set_next_decimal_direct
+    bne set_next_decimal_draw
     lda #LCD_ADDR_FIRST_OVERFLOW - 1
-set_next_decimal_direct:
+set_next_decimal_draw:
     jsr set_cursor_address
     inc robo_score_display_position
     iny
