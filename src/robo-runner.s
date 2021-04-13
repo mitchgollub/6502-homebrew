@@ -48,8 +48,7 @@ draw_init_screen:
     lda #LCD_ADDR_TOP_RIGHT_CORNER
     sta robo_score_display_position     ; Initialize Robo score display position
     stz hurdle_count                    ; Initialize hurdle count to 0
-    lda #9
-    sta robo_score                      ; Initialize Robo Score to 0
+    stz robo_score                      ; Initialize Robo Score to 0
     stz hurdle_spacing_count            ; Initialize hurdle spacing count to 0
     stz robo_jump_time                  ; Initialize robo jump flag to 0
 
