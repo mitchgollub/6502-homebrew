@@ -23,11 +23,18 @@ robo_score_display_position = $0206 ; 1 byte (holds the display position for the
 robo_score      = $0207         ; 1 byte (holds the player score)
 hurdle_position = $0208         ; 4 bytes holds hurdle positions for collision check (4 + 1 terminating zero-byte)
 
+; divide function memory locations
+value       = $0213; define value (2 bytes)
+mod10       = $0215; define mod10 (2 bytes)
+decimal     = $0217; define decimal (4 bytes)
+char_count  = $0222; define char_count (1 byte)
+
 ; ROM memory addresses 8000 -> FFFF
     .org $8000
     jmp reset                       ; jump to reset method in bootstrap.s to boot
 ; Code libraries
     .include "./lib/1602a-lcd.s"    ; include 1602a library
+    .include "./lib/divide.s"       ; include divide function
     .include "./lib/bootstrap.s"    ; boot program
     
 entrypoint:
@@ -189,34 +196,18 @@ reset_count_display:                    ; Reset new position to first LCD screen
     lda #%10000000
     sta robo_score_display_position
 draw_robo_score:
-    ldx robo_score                      ; Initialize remainder
-    ldy #0                              ; Initialize tens digit
+    stz char_count
     lda robo_score
-draw_robo_score_loop:                   ; Check if tens digit is needed
-    sbc #9
-    bcs set_next_decimal
-    lda robo_score_display_position     ; Set ones digit when < 10
-    jsr set_cursor_address
-    txa
-    adc #"0"
+    sta value
+    jsr divide
+draw_robo_score_print_loop:
+    ldx char_count
+    dec char_count
+    lda decimal,x
     jsr print_char
+    cpx #0
+    bne draw_robo_score_print_loop
     rts
-set_next_decimal:
-    tax
-    dec robo_score_display_position
-    lda robo_score_display_position
-    cmp #%01111111
-    bne set_next_decimal_draw
-    lda #LCD_ADDR_FIRST_OVERFLOW - 1
-set_next_decimal_draw:
-    jsr set_cursor_address
-    inc robo_score_display_position
-    iny
-    tya
-    adc #"0" - 1
-    jsr print_char
-    txa
-    jmp draw_robo_score_loop
 
 ; Check robo_position w/ closest hurdle to determine game status
 calculate_collision:
