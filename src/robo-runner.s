@@ -164,6 +164,60 @@ set_robo_position_to_ground:
     sta robo_position                   ; Store position back to memory
     rts
 
+; Draw player score
+draw_score:
+    dec robo_score_display_position     ; Go to old tens digit position
+    lda robo_score_display_position
+    cmp #%01111111                      ; Check if it was at starting position
+    bne draw_score_clear_previous
+    lda #LCD_ADDR_FIRST_OVERFLOW - 1    ; Move position to last position for BLANK overwrite
+draw_score_clear_previous:
+    jsr set_cursor_address
+    lda #BLANK_SPRITE
+    jsr print_char
+    inc robo_score_display_position     ; Clear the old ones digit position
+    lda robo_score_display_position
+    jsr set_cursor_address
+    lda #BLANK_SPRITE
+    jsr print_char
+    inc robo_score_display_position     ; Move position to new LCD screen position
+    lda robo_score_display_position
+    cmp #LCD_ADDR_FIRST_OVERFLOW        ; Check if new position is overflow
+    bne draw_robo_score
+reset_count_display:                    ; Reset new position to first LCD screen position
+    clc                                 ; Clear carry bit to fix score overflow display bug
+    lda #%10000000
+    sta robo_score_display_position
+draw_robo_score:
+    ldx robo_score                      ; Initialize remainder
+    ldy #0                              ; Initialize tens digit
+    lda robo_score
+draw_robo_score_loop:                   ; Check if tens digit is needed
+    sbc #9
+    bcs set_next_decimal
+    lda robo_score_display_position     ; Set ones digit when < 10
+    jsr set_cursor_address
+    txa
+    adc #"0"
+    jsr print_char
+    rts
+set_next_decimal:
+    tax
+    dec robo_score_display_position
+    lda robo_score_display_position
+    cmp #%01111111
+    bne set_next_decimal_draw
+    lda #LCD_ADDR_FIRST_OVERFLOW - 1
+set_next_decimal_draw:
+    jsr set_cursor_address
+    inc robo_score_display_position
+    iny
+    tya
+    adc #"0" - 1
+    jsr print_char
+    txa
+    jmp draw_robo_score_loop
+
 ; Check robo_position w/ closest hurdle to determine game status
 calculate_collision:
     lda robo_position           ; Compare Robo position (from ground) and closest hurdle
@@ -187,29 +241,6 @@ clean_stale_hurdles_loop:
     lda hurdle_position,x       ; Peek at "Next" hurdle position
     cmp #0                      ; if empty, we've reached end of hurdles
     bne clean_stale_hurdles_loop; repeat until we've reached the end
-    rts
-
-; Draw player score
-; TODO: Convert score to ascii
-draw_score:
-    lda robo_score_display_position
-    jsr set_cursor_address
-    lda #BLANK_SPRITE
-    jsr print_char
-    inc robo_score_display_position
-    lda robo_score_display_position
-    cmp #LCD_ADDR_FIRST_OVERFLOW
-    bne draw_robo_score
-reset_count_display:
-    clc                                 ; Clear carry bit to fix score overflow display bug
-    lda #%10000000
-    sta robo_score_display_position
-draw_robo_score:
-    lda robo_score_display_position
-    jsr set_cursor_address
-    lda robo_score
-    adc #"0"
-    jsr print_char
     rts
 
 ; Game over, draw message and send to game over loop
