@@ -1,4 +1,6 @@
 ; TODO: Game breaks when jumping over hurdle from "O" to "P"
+;       Game over logic still works when hitting hurdle on "O"
+;       Tested starting a "O", game still plays.  Might be related to another variable
 
 ; LCD Characters
 ROBO_SPRITE =   %11001110
@@ -94,7 +96,10 @@ draw_hurdle:
     inc hurdle_spawn_position
     lda hurdle_spawn_position
     cmp #LCD_ADDR_LAST_ROW_LAST_CHAR   ; Reset counter at last address for line 2
-    beq reset_hurdle_spawn
+    bne draw_hurdle_check_spacing
+reset_hurdle_spawn:
+    lda #LCD_ADDR_LAST_ROW_FIRST_CHAR  ; Set cursor 2nd row 1st char
+    sta hurdle_spawn_position          ; Store hurdle_spawn_position
 draw_hurdle_check_spacing:
     inc hurdle_spacing_count
     lda hurdle_spacing_count
@@ -117,10 +122,6 @@ draw_hurdle_end:
     lda #GROUND_SPRITE          ; No hurdle, draw ground
     jsr print_char
     rts
-reset_hurdle_spawn:
-    lda #LCD_ADDR_LAST_ROW_FIRST_CHAR  ; Set cursor 2nd row 1st char
-    sta hurdle_spawn_position          ; Store hurdle_spawn_position
-    jmp draw_hurdle_check_spacing
 
 ; Subroutine to calculate position and jumps to draw robo sprite
 draw_robo_sprite:
@@ -158,8 +159,6 @@ draw_robo_sprite_redraw:
     jsr set_cursor_address
     lda #ROBO_SPRITE
     jsr print_char
-    jsr set_robo_position_to_ground
-    rts
 set_robo_position_to_ground:
     lda robo_position                   ; reset the position from potential jump adjustment
     ora #%01000000                      ; Set to 2nd row
