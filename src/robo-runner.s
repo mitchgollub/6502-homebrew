@@ -93,15 +93,21 @@ draw_hurdle:
     inc hurdle_spawn_position
     lda hurdle_spawn_position
     cmp #LCD_ADDR_LAST_ROW_LAST_CHAR   ; Reset counter at last address for line 2
-    beq reset_hurdle_spawn
+    bne draw_hurdle_check_spacing
+reset_hurdle_spawn:
+    lda #LCD_ADDR_LAST_ROW_FIRST_CHAR  ; Set cursor 2nd row 1st char
+    sta hurdle_spawn_position          ; Store hurdle_spawn_position
 draw_hurdle_check_spacing:
     inc hurdle_spacing_count
     lda hurdle_spacing_count
     cmp #HURDLE_SPACING
-    bne draw_hurdle_end
+    bmi draw_hurdle_end
 draw_hurdle_draw:
-    stz hurdle_spacing_count    ; Reset `hurdle_spacing_count`
-    lda hurdle_spawn_position   ; Load hurdle spawn
+    lda hurdle_count                ; Make sure hurdle_count doesn't
+    cmp #HURDLE_POSITION_BYTES - 1  ; go over hurdle_position size
+    beq draw_hurdle_end
+    stz hurdle_spacing_count        ; Reset `hurdle_spacing_count`
+    lda hurdle_spawn_position       ; Load hurdle spawn
     jsr set_cursor_address
     lda #HURDLE_SPRITE
     jsr print_char
@@ -116,10 +122,6 @@ draw_hurdle_end:
     lda #GROUND_SPRITE          ; No hurdle, draw ground
     jsr print_char
     rts
-reset_hurdle_spawn:
-    lda #LCD_ADDR_LAST_ROW_FIRST_CHAR  ; Set cursor 2nd row 1st char
-    sta hurdle_spawn_position          ; Store hurdle_spawn_position
-    jmp draw_hurdle_check_spacing
 
 ; Subroutine to calculate position and jumps to draw robo sprite
 draw_robo_sprite:
@@ -134,7 +136,7 @@ reset_robo_counter:
     sta robo_position                   ; Store initial robo_position
 draw_robo_sprite_check_jump:
     lda robo_jump_time                  ; Check robo_jump_time
-    cmp #$00
+    cmp #0
     beq draw_robo_sprite_redraw
 handle_robo_jump_time:
     dec robo_jump_time
@@ -157,8 +159,6 @@ draw_robo_sprite_redraw:
     jsr set_cursor_address
     lda #ROBO_SPRITE
     jsr print_char
-    jsr set_robo_position_to_ground
-    rts
 set_robo_position_to_ground:
     lda robo_position                   ; reset the position from potential jump adjustment
     ora #%01000000                      ; Set to 2nd row
@@ -234,11 +234,11 @@ clean_stale_hurdles:
     ldy #0                      ; "Current" hurdle
     dec hurdle_count            ; decrease total hurdles
     inc robo_score              ; Made it past a hurdle! +1!
-clean_stale_hurdles_loop
+clean_stale_hurdles_loop:
     lda hurdle_position,x       ; Load "Next" hurdle position       
     sta hurdle_position,y       ; Store "Next" back to "Current" hurdle position
     inx                         ; Move to next hurdle positions
-    iny
+    iny     
     lda hurdle_position,x       ; Peek at "Next" hurdle position
     cmp #0                      ; if empty, we've reached end of hurdles
     bne clean_stale_hurdles_loop; repeat until we've reached the end
