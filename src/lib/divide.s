@@ -9,6 +9,7 @@
 ;
 ; Load number into value. decimal will contain ascii output bytes
 divide:
+    stz char_count
     stz mod10          ; Initialize remainder to 0
     stz mod10 + 1
     clc
@@ -35,13 +36,14 @@ ignore_result:
     rol value
     rol value + 1
 
-    inc char_count
     ldy char_count
 
     lda mod10
     clc
     adc #"0"
     sta decimal,y
+    
+    inc char_count
     
     lda value       ; if value != 0 continue dividing
     ora value + 1

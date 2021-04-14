@@ -43,8 +43,8 @@ entrypoint:
 ; Main Draw loop
 draw_loop:
     jsr draw_hurdle             ; draw hurdle
-    jsr draw_robo_sprite        ; draw robo sprite
     jsr draw_score              ; draw user score
+    jsr draw_robo_sprite        ; draw robo sprite
     jsr calculate_collision     ; calculate collision
     lda #DRAW_LOOP_WAIT_TIME    ; set wait time
     jsr wait                    ; draw loop wait for game speed
@@ -173,41 +173,86 @@ set_robo_position_to_ground:
 
 ; Draw player score
 draw_score:
-    dec robo_score_display_position     ; Go to old tens digit position
-    lda robo_score_display_position
-    cmp #%01111111                      ; Check if it was at starting position
-    bne draw_score_clear_previous
-    lda #LCD_ADDR_FIRST_OVERFLOW - 1    ; Move position to last position for BLANK overwrite
-draw_score_clear_previous:
-    jsr set_cursor_address
-    lda #BLANK_SPRITE
-    jsr print_char
-    inc robo_score_display_position     ; Clear the old ones digit position
-    lda robo_score_display_position
-    jsr set_cursor_address
-    lda #BLANK_SPRITE
-    jsr print_char
-    inc robo_score_display_position     ; Move position to new LCD screen position
-    lda robo_score_display_position
-    cmp #LCD_ADDR_FIRST_OVERFLOW        ; Check if new position is overflow
-    bne draw_robo_score
-reset_count_display:                    ; Reset new position to first LCD screen position
-    clc                                 ; Clear carry bit to fix score overflow display bug
-    lda #%10000000
-    sta robo_score_display_position
-draw_robo_score:
     stz char_count
     lda robo_score
     sta value
-    jsr divide
-draw_robo_score_print_loop:
-    ldx char_count
-    dec char_count
-    lda decimal,x
+    jsr divide          ; Change robo_score to ascii
+
+    lda #LCD_ADDR_FIRST_ROW_FIRST_CHAR
+    tay                                 ; Store first row in Y
+clear_top_row:
+    jsr set_cursor_address
+    lda #BLANK_SPRITE
     jsr print_char
-    cpx #0
-    bne draw_robo_score_print_loop
+    iny
+    tya
+    cmp #LCD_ADDR_FIRST_OVERFLOW
+    bne clear_top_row
+draw_robo_score:
+    ldx char_count                      ; store char_count for print loop
+    inc robo_score_display_position     ; Move ones digit up one
+    lda robo_score_display_position
+    sta robo_score_display_position
+    cmp #LCD_ADDR_FIRST_OVERFLOW        ; Check if new position is overflow
+    bne move_to_start_init_check
+reset_count_display:                    ; Reset new position to first LCD screen position
+    clc                                 ; Clear carry bit to fix score overflow display bug
+    lda #LCD_ADDR_FIRST_ROW_FIRST_CHAR
+    sta robo_score_display_position
+move_to_start_init_check:
+    lda char_count
+    cmp #1
+    bpl move_to_start                   ; If greater than = 2, find start
+    lda robo_score_display_position     ; else print first character
+    jsr set_cursor_address
+    lda decimal
+    jsr print_char
     rts
+move_to_start:                          
+    lda robo_score_display_position
+    tay
+    jmp move_to_start_loop
+move_to_start_decrement:
+    dey
+    dex                                 ; decrease char_count cursor
+move_to_start_loop:
+    tya
+    cmp #LCD_ADDR_FIRST_ROW_FIRST_CHAR  ; make sure we didn't go past first char
+    bpl move_to_start_check
+reset_count_display_counter:            ; Reset new position to first LCD screen position
+    clc                                 ; Clear carry bit to fix score overflow display bug
+    lda #LCD_ADDR_FIRST_OVERFLOW - 1    ; Set to first row last char if coming from first row first char
+    tay
+move_to_start_check:                    ; TODO: Works up to here
+    cpx #1
+    bne move_to_start_decrement         ; If char_count at 0, go to print loop
+    tya
+    jsr set_cursor_address
+    lda decimal
+    jsr print_char
+    rts
+
+; draw_robo_score_print:
+;     jsr set_cursor_address
+;     lda #ROBO_SPRITE
+;     jsr print_char
+
+;     tay
+; draw_robo_score_print_loop:
+;     cpy #LCD_ADDR_FIRST_OVERFLOW
+;     bne draw_robo_score_print_loop_2
+;     ldy #LCD_ADDR_FIRST_ROW_FIRST_CHAR - 1
+; draw_robo_score_print_loop_2:
+;     ldx char_count
+;     dec char_count
+;     iny
+;     tya
+;     jsr set_cursor_address
+;     lda decimal,x
+;     jsr print_char
+;     cpx #0
+;     bne draw_robo_score_print_loop
+;     rts
 
 ; Check robo_position w/ closest hurdle to determine game status
 calculate_collision:
