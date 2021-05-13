@@ -1,5 +1,4 @@
 ; LCD Command flags
-; TODO: Confirm these outputs on 6522
 E       = %10000000 ;   LCD Enable signal
 RW      = %01000000 ;   LCD Read/Write Flag (H - Read, L - Write)
 RS      = %00100000 ;   LCD Input Flag (H - Data, L - Instruction)
@@ -54,7 +53,7 @@ lcdbusy:
     sta PORTB
     lda PORTB       ; Read low nibble
     pla             ; Pull high nibble off stack
-    and #%00001000  ; TODO: Read DB7 
+    and #%00001000  ; Read DB7 
     bne lcdbusy
 
     lda #RW
@@ -65,7 +64,7 @@ lcdbusy:
     rts
 
 lcd_init_four_bit:
-    lda #%00000010  ;   Initialize 4-bit mode
+    lda #%00000010  ; Initialize 4-bit mode
     sta PORTB
     ora #E          ; Enable bit ON   
     sta PORTB
@@ -75,6 +74,7 @@ lcd_init_four_bit:
 
 lcd_instruction:
     jsr lcd_wait 
+    pha
     pha
     lsr
     lsr
@@ -93,7 +93,7 @@ lcd_instruction:
     sta PORTB
     eor #E          ; Enable bit OFF   
     sta PORTB 
-    
+    pla
     rts
 
 print_char:

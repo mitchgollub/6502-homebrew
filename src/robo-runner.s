@@ -27,8 +27,8 @@ hurdle_position = $0208         ; 4 bytes holds hurdle positions for collision c
     .org $8000
     jmp reset                       ; jump to reset method in bootstrap.s to boot
 ; Code libraries
-    .include "./lib/1602a-lcd.s"    ; include 1602a library
-    .include "./lib/bootstrap.s"    ; boot program
+    .include "./lib/1602a-lcd.4bit.s"    ; include 1602a library
+    .include "./lib/bootstrap.4bit.s"    ; boot program
     
 entrypoint:
     jsr draw_init_screen
@@ -165,6 +165,8 @@ set_robo_position_to_ground:
     rts
 
 ; Draw player score
+; TODO: ones and tens digit fluctuate on 4bit mode
+; TODO: +1 is counted to score before first hurdle jump
 draw_score:
     dec robo_score_display_position     ; Go to old tens digit position
     lda robo_score_display_position
@@ -213,7 +215,7 @@ set_next_decimal_draw:
     inc robo_score_display_position
     iny
     tya
-    adc #"0" - 1
+    adc #"0"
     jsr print_char
     txa
     jmp draw_robo_score_loop

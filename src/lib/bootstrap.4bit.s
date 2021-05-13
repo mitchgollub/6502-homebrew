@@ -24,20 +24,18 @@ reset:
     lda #%00000000  ;   Set 0 pins on PORTA to output (input pins)
     sta DDRA
 
-    jsr lcd_init_four_bit
-    ; lda #%00000010  ;   Initialize 4-bit mode
-    ; jsr lcd_instruction
+    jsr lcd_init_four_bit   ;   Initialize 4-bit mode
 
-    lda #%00101000  ;   4-bit - 2 line - 5x8 font (001<DL><N><F>xx)   
+    lda #%00101000          ;   4-bit - 2 line - 5x8 font (001<DL><N><F>xx)   
     jsr lcd_instruction
 
-    lda #%00001110  ;   Display on - Cursor on - Blink off
+    lda #%00001110          ;   Display on - Cursor on - Blink off
     jsr lcd_instruction
 
-    lda #%00000110  ;   Increment and shift cursor - don't shift display
+    lda #%00000110          ;   Increment and shift cursor - don't shift display
     jsr lcd_instruction
 
-    lda #$01  ;   Clear display
+    lda #$01                ;   Clear display
     jsr lcd_instruction
 
     jmp entrypoint
