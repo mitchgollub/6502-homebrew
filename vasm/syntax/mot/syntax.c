@@ -1,5 +1,5 @@
 /* syntax.c  syntax module for vasm */
-/* (c) in 2002-2020 by Frank Wille */
+/* (c) in 2002-2021 by Frank Wille */
 
 #include "vasm.h"
 
@@ -12,9 +12,10 @@
    be provided by the main module.
 */
 
-char *syntax_copyright="vasm motorola syntax module 3.14a (c) 2002-2020 Frank Wille";
+char *syntax_copyright="vasm motorola syntax module 3.15a (c) 2002-2021 Frank Wille";
 hashtable *dirhash;
 char commentchar = ';';
+int dotdirs;
 
 static char code_name[] = "CODE";
 static char data_name[] = "DATA";
@@ -316,10 +317,10 @@ static void handle_space(char *s,int size)
 }
 
 
-static void handle_xspace(char *s,int size)
+static void handle_uspace(char *s,int size)
 {
   atom *a = do_space(size,parse_expr_tmplab(&s),0);
-  a->content.sb->flags |= SPC_DATABSS;
+  a->content.sb->flags |= SPC_UNINITIALIZED;
 }
 
 
@@ -542,7 +543,7 @@ static void handle_org(char *s)
   if (*s == '*') {    /*  "* = * + <expr>" reserves bytes */
     s = skip(s+1);
     if (*s == '+')
-      handle_space(skip(s+1),8);
+      handle_uspace(skip(s+1),8);
     else
       syntax_error(7);  /* syntax error */
   }
@@ -705,6 +706,7 @@ static void handle_d64(char *s)
 }
 
 
+#if FLOAT_PARSER
 static void handle_f32(char *s)
 {
   handle_data(s,OPSZ_FLOAT|32);
@@ -721,6 +723,7 @@ static void handle_f96(char *s)
 {
   handle_data(s,OPSZ_FLOAT|96);
 }
+#endif
 
 
 static void do_alignment(taddr align,expr *offset,size_t pad,expr *fill)
@@ -790,31 +793,31 @@ static void handle_block(char *s,int size)
 
 static void handle_xspc8(char *s)
 {
-  handle_xspace(s,8);
+  handle_uspace(s,8);
 }
 
 
 static void handle_xspc16(char *s)
 {
-  handle_xspace(s,16);
+  handle_uspace(s,16);
 }
 
 
 static void handle_xspc32(char *s)
 {
-  handle_xspace(s,32);
+  handle_uspace(s,32);
 }
 
 
 static void handle_xspc64(char *s)
 {
-  handle_xspace(s,64);
+  handle_uspace(s,64);
 }
 
 
 static void handle_xspc96(char *s)
 {
-  handle_xspace(s,96);
+  handle_uspace(s,96);
 }
 
 
@@ -1033,6 +1036,17 @@ static void handle_debug(char *s)
   atom *a = new_srcline_atom((int)parse_constexpr(&s));
 
   add_atom(0,a);
+}
+
+
+static void handle_msource(char *s)
+{
+  if (!strnicmp(s,"on",2))
+    msource_disable = 0;
+  else if (!strnicmp(s,"off",3))
+    msource_disable = 1;
+  else
+    msource_disable = atoi(s) == 0;
 }
 
 
@@ -1367,6 +1381,18 @@ static void handle_ifle(char *s)
   ifexp(s,5);
 }
 
+static void handle_ifp1(char *s)
+{
+  cond_if(1);        /* vasm parses only once, so we assume true */
+  syntax_error(25);  /* and warn about it */
+}
+
+static void handle_ifp2(char *s)
+{
+  cond_if(0);        /* vasm parses only once, so we assume false */
+  syntax_error(26);  /* and warn about it */
+}
+
 static void handle_else(char *s)
 {
   cond_skipelse();
@@ -1612,6 +1638,18 @@ static void handle_einline(char *s)
     syntax_error(20);  /* einline without inline */
 }
 
+static void handle_pushsect(char *s)
+{
+  push_section();
+  eol(s);
+}
+
+static void handle_popsect(char *s)
+{
+  pop_section();
+  eol(s);
+}
+
 
 #define D 1 /* available for DevPac */
 #define P 2 /* available for PhxAss */
@@ -1666,9 +1704,11 @@ struct {
   "dc.w",P|D,handle_d16,
   "dc.l",P|D,handle_d32,
   "dc.q",P,handle_d64,
+#if FLOAT_PARSER
   "dc.s",P|D,handle_f32,
   "dc.d",P|D,handle_f64,
   "dc.x",P|D,handle_f96,
+#endif
   "ds",P|D,handle_spc16,
   "ds.b",P|D,handle_spc8,
   "ds.w",P|D,handle_spc16,
@@ -1723,6 +1763,7 @@ struct {
   "symdebug",P,eol,
   "dsource",P,handle_dsource,
   "debug",P,handle_debug,
+  "msource",0,handle_msource,
   "vdebug",0,handle_vdebug,
   "comment",P|D,handle_comment,
   "incdir",P|D,handle_incdir,
@@ -1753,6 +1794,9 @@ struct {
   "ifmi",0,handle_iflt,
   "ifpl",0,handle_ifge,
   "if",P,handle_ifne,
+  "ifp1",0,handle_ifp1,
+  "if1",0,handle_ifp1,
+  "if2",0,handle_ifp2,
   "else",P|D,handle_else,
   "elseif",P|D,handle_else,
   "endif",P|D,handle_endif,
@@ -1798,11 +1842,13 @@ struct {
   "struct",0,handle_struct,
   "estruct",0,handle_endstruct,
 #endif
+  "pushsection",0,handle_pushsect,
+  "popsection",0,handle_popsect,
 };
 #undef P
 #undef D
 
-int dir_cnt = sizeof(directives) / sizeof(directives[0]);
+size_t dir_cnt = sizeof(directives) / sizeof(directives[0]);
 
 
 /* checks for a valid directive, and return index when found, -1 otherwise */
@@ -2041,6 +2087,7 @@ void parse(void)
         s = skip(s+3);
         label = new_equate(labname,parse_expr_tmplab(&s));
       }
+#if FLOAT_PARSER
       else if (!strnicmp(s,"fequ.",5) && isspace((unsigned char)*(s+6))) {
         s += 5;
         label = fequate(labname,&s);
@@ -2050,11 +2097,16 @@ void parse(void)
         s += 4;
         label = fequate(labname,&s);
       }
+#endif
       else if (*s=='=') {
         ++s;
         if (phxass_compat && *s=='.' && isspace((unsigned char)*(s+2))) {
+#if FLOAT_PARSER
           ++s;
           label = fequate(labname,&s);
+#else
+          syntax_error(7);  /* syntax error */
+#endif
         }
         else {
           s = skip(s);
@@ -2504,7 +2556,7 @@ char *get_local_label(char **start)
 }
 
 
-int init_syntax()
+int init_syntax(void)
 {
   size_t i;
   symbol *sym;

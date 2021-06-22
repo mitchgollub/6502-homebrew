@@ -1,13 +1,13 @@
 /* parse.c - global parser support functions */
-/* (c) in 2009-2020 by Volker Barthelmann and Frank Wille */
+/* (c) in 2009-2021 by Volker Barthelmann and Frank Wille */
 
 #include "vasm.h"
-#include "osdep.h"
 
 int esc_sequences = 0;  /* do not handle escape sequences by default */
 int nocase_macros = 0;  /* macro names are case-insensitive */
 int maxmacparams = MAXMACPARAMS;
 int maxmacrecurs = MAXMACRECURS;
+int msource_disable;    /* true: disable source level debugging within macro */
 
 #ifndef MACROHTABSIZE
 #define MACROHTABSIZE 0x800
@@ -263,8 +263,10 @@ char *read_string(char *p,char *s,char delim,int width)
           break;
       }
     }
-    setval(BIGENDIAN,p,width,(unsigned char)c);
-    p += width;
+    if (p) {
+      setval(BIGENDIAN,p,width,(unsigned char)c);
+      p += width;
+    }
   }
   return s;
 }
@@ -365,42 +367,6 @@ int check_indir(char *p,char *q)
 }
 
 
-void include_binary_file(char *inname,long nbskip,unsigned long nbkeep)
-/* locate a binary file and convert into a data atom */
-{
-  char *filename;
-  FILE *f;
-
-  filename = convert_path(inname);
-  if (f = locate_file(filename,"rb",NULL)) {
-    size_t size = filesize(f);
-
-    if (size > 0) {
-      if (nbskip>=0 && nbskip<=size) {
-        dblock *db = new_dblock();
-
-        if (nbkeep > (unsigned long)(size - nbskip) || nbkeep==0)
-          db->size = size - (size_t)nbskip;
-        else
-          db->size = nbkeep;
-
-        db->data = mymalloc(size);
-        if (nbskip > 0)
-          fseek(f,nbskip,SEEK_SET);
-
-        if (fread(db->data,1,db->size,f) != db->size)
-          general_error(29,filename);  /* read error */
-        add_atom(0,new_data_atom(db,1));
-      }
-      else
-        general_error(46);  /* bad file-offset argument */
-    }
-    fclose(f);
-  }
-  myfree(filename);
-}
-
-
 static struct namelen *dirlist_match(char *s,char *e,struct namelen *list)
 /* check if a directive from the list matches the current source location */
 {
@@ -437,6 +403,21 @@ static size_t dirlist_minlen(struct namelen *list)
       minlen = list->len;
   }
   return minlen;
+}
+
+
+/* add a skipped macro/repeat line to the listing */
+static void list_skipped_line(char *p)
+{
+  listing *new = new_listing(cur_src,cur_src->line);
+  size_t len = p - cur_src->srcptr;
+
+  if (len>0 && (*(p-1)=='\n' || *(p-1)=='\r'))
+    len--;
+  if (len >= MAXLISTSRC)
+    len = MAXLISTSRC - 1;
+  memcpy(new->txt,cur_src->srcptr,len);
+  new->txt[len] = '\0';
 }
 
 
@@ -558,6 +539,7 @@ macro *new_macro(char *name,struct namelen *maclist,struct namelen *endmlist,
     m->argnames = m->defaults = NULL;
     m->recursions = 0;
     m->vararg = -1;
+    m->srcdebug = !msource_disable;
 
     /* remember the start-line of this macro definition in the real source */
     if (cur_src->defsrc)
@@ -670,7 +652,7 @@ int execute_macro(char *name,int name_len,char **q,int *q_len,int nq,
   nq = 0;
 #endif
 
-  if (!(m = find_macro(name,name_len)))
+  if ((m = find_macro(name,name_len)) == NULL)
     return 0;
 
   /* it's a macro: read arguments and execute it */
@@ -684,6 +666,7 @@ int execute_macro(char *name,int name_len,char **q,int *q_len,int nq,
   src->defsrc = m->defsrc;
   src->defline = m->defline;
   src->argnames = m->argnames;
+  src->srcdebug = m->srcdebug;
 
 #if MAX_QUALIFIERS>0
   /* remember given qualifiers, or use the cpu's default qualifiers */
@@ -955,16 +938,14 @@ int copy_macro_param(source *src,int n,char *d,int len)
 int copy_macro_qual(source *src,int n,char *d,int len)
 {
 #if MAX_QUALIFIERS > 0
-  int i;
-
   if (n < src->num_quals) {
+    int i;
     for (i=0; i<src->qual_len[n] && len>0; i++,len--)
       *d++ = src->qual[n][i];
+    return i==src->qual_len[n] ? i : -1;
   }
-  return i==src->qual_len[n] ? i : -1;
-#else
-  return 0;
 #endif
+  return 0;
 }
 
 /* Switch to a named offset section which defines the structure. */
@@ -1018,6 +999,7 @@ char *read_next_line(void)
 {
   char *s,*srcend,*d;
   int nparam,len;
+  int skip_listing = 0;
   char *rept_end = NULL;
 
   /* check if end of source is reached */
@@ -1072,7 +1054,7 @@ char *read_next_line(void)
   /* line buffer starts with 0, to allow checks for left-hand character */
   *d++ = 0;
 
-  if (enddir_list!=NULL && (srcend-s)>enddir_minlen) {
+  if (enddir_list!=NULL && (size_t)(srcend-s)>enddir_minlen) {
     /* reading a definition, like a macro or a repeat-block, until an
        end directive is found */
     struct namelen *dir;
@@ -1121,11 +1103,11 @@ char *read_next_line(void)
       if (ISEOL(s))
         s = skip_eol(s,srcend);
 
-      if (*s == '\n') {
-        cur_src->srcptr = s + 1;
-        cur_src->line++;
-      }
-      else if (*s=='\r' && *(s-1)!='\n' && (s>=(srcend-1) || *(s+1)!='\n')) {
+      if ((*s=='\n') ||
+          (*s=='\r' && *(s-1)!='\n' && (s>=(srcend-1) || *(s+1)!='\n'))) {
+        /* new line */
+        if (listena)
+          list_skipped_line(s);
         cur_src->srcptr = s + 1;
         cur_src->line++;
       }
@@ -1141,6 +1123,10 @@ char *read_next_line(void)
 
     /* ignore rest of line, treat as comment */
     s = skip_eol(s,srcend);
+    if (listena) {
+      list_skipped_line(s);
+      skip_listing = 1;
+    }
   }
 
   if (nparam<0 && cur_src->irpname!=NULL)
@@ -1202,29 +1188,14 @@ char *read_next_line(void)
 
   *d = '\0';
   cur_src->srcptr = s;
-
-  if (listena) {
-    listing *new = mymalloc(sizeof(*new));
-
-    new->next = 0;
-    new->line = cur_src->line;
-    new->error = 0;
-    new->atom = 0;
-    new->sec = 0;
-    new->pc = 0;
-    new->src = cur_src;
-    strncpy(new->txt,cur_src->linebuf+1,MAXLISTSRC);
-    if (first_listing) {
-      last_listing->next = new;
-      last_listing = new;
-    }
-    else {
-      first_listing = last_listing = new;
-    }
-    cur_listing = new;
-  }
-
   s = cur_src->linebuf+1;
+
+  if (listena && !skip_listing) {
+    listing *new = new_listing(cur_src,cur_src->line);
+
+    strncpy(new->txt,s,MAXLISTSRC);
+    new->txt[MAXLISTSRC-1] = '\0';
+  }
   if (rept_end)
     start_repeat(rept_end);
   return s;

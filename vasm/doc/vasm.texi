@@ -13,7 +13,7 @@
 
 This is the manual for the vasm assembler system.
 
-Copyright 2002-2020 Volker Barthelmann
+Copyright 2002-2021 Volker Barthelmann
 
 @end ifinfo
 
@@ -54,7 +54,7 @@ or analyzing the output.
 
 @section Legal
 
-    vasm is copyright in 2002-2020 by Volker Barthelmann.
+    vasm is copyright in 2002-2021 by Volker Barthelmann.
 
     This archive may be redistributed without modifications and used
     for non-commercial purposes.
@@ -128,6 +128,10 @@ Detailed instructions how to build vasm can be found in the last chapter.
 @chapter X68k output module
 @include output_xfile.texi
 
+@node O65 output module
+@chapter O65 output module
+@include output_o65.texi
+
 @node vobj output module
 @chapter vobj output module
 @include output_vobj.texi
@@ -183,6 +187,10 @@ Detailed instructions how to build vasm can be found in the last chapter.
 @node Jaguar RISC cpu module
 @chapter Jaguar RISC cpu module
 @include cpu_jagrisc.texi
+
+@node PDP11 cpu module
+@chapter PDP11 cpu module
+@include cpu_pdp11.texi
 
 @node Trillek TR3200 cpu module
 @chapter Trillek TR3200 cpu module

@@ -5,7 +5,7 @@
 #include "osdep.h"
 #include "output_hunk.h"
 #if defined(OUTHUNK) && (defined(VASM_CPU_M68K) || defined(VASM_CPU_PPC))
-static char *copyright="vasm hunk format output module 2.12 (c) 2002-2020 Frank Wille";
+static char *copyright="vasm hunk format output module 2.13 (c) 2002-2020 Frank Wille";
 int hunk_onlyglobal;
 
 /* (currenty two-byte only) padding value for not 32-bit aligned code hunks */
@@ -281,7 +281,7 @@ static utaddr sect_size(section *sec)
     if (a->type == SPACE) {
       sblock *sb = a->content.sb;
     
-      if (sb->flags & SPC_DATABSS) {
+      if (sb->flags & SPC_UNINITIALIZED) {
         if (dxpc == 0)
           dxpc = pc;
       }
@@ -606,10 +606,18 @@ static void add_linedebug(struct list *ldblist,source *src,int line,
 
   /* get full source path and fix line number for macros and repetitions */
   if (src != NULL) {
+    /* Submitted by Soren Hannibal:
+       Use parent source/line when no source level debugging is allowed
+       for this source text instance. */
+    while (!src->srcdebug && src->parent!=NULL) {
+      line = src->parent_line;
+      src = src->parent;
+    }
     if (src->defsrc != NULL) {
       line += src->defline;
       src = src->defsrc;
     }
+
     pathbuf[0] = '\0';
     if (src->srcfile->incpath != NULL) {
       if (src->srcfile->incpath->compdir_based)
